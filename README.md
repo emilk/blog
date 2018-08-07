@@ -16,6 +16,7 @@ A work-in-progress port of Emil Ernerfeldt's blog at www.ilikebigbits.com to Mar
 * [x] Add redirects for old links
 * [x] Add a footer to each site
 * [x] Add a ornate separator between header and article
+* [ ] Fix how the page looks on Firefox
 * [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
 * [ ] Ensure redirects works live
 * [ ] Ensure it reads well on a phone

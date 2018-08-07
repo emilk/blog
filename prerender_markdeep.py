@@ -66,7 +66,11 @@ def convert_file(in_filepath: Path, out_filepath: Path, initial_pass: bool):
 			return f.read()
 
 	# Apply (insert header.html here) thingy everywhere:
-	text = re.sub(r"\(insert (.*) here\)", replace_insertion, text)
+	# text = re.sub(r"\(insert (.*) here\)", replace_insertion, text)
+
+	# Apply <!-- insert header.html here --> everywhere:
+	text = re.sub(r"<!-- insert (.*) here -->", replace_insertion, text)
+
 	text = render_math(text, initial_pass)
 	text = "<!-- Copyright Emil Ernerfeldt -->\n" + text
 	text = "<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->\n" + text
