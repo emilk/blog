@@ -20,7 +20,7 @@ A work-in-progress port of Emil Ernerfeldt's blog at www.ilikebigbits.com to Mar
 * [ ] Ensure redirects works live
 * [ ] Ensure it reads well on a phone
 * [ ] Add Google tracking
-* [ ] Push to Github Pages
+* [x] Push to Github Pages
 * [ ] Test, test, test
 * [ ] Redirect www.ilikebigbits.com
 * [ ] Close old account
