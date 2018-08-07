@@ -1,0 +1,206 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+<head><title>You deserve great error messages!</title></head>
+# You deserve great error messages!
+<p id="date">January 25, 2016</p>
+
+This article is about how the tools we use for parsing and processing config files are lacking in their error reporting. The article is written from the perspective of a game developer but it applies to mosts facets of software engineering. If you have ever come across JSON, YAML, XML or similar you should keep reading.
+
+
+## The unfulfilled promise of configuration files
+I love config files. At [Arrowhead Game Studios](http://arrowheadgamestudios.com/) we used them for describing units (players, monsters, traps, etc.), dialogue trees, the structure of randomized levels, the GUI, shader files, etc. The great things about config files are:
+
+* They can easily be reloaded while the game is running for fast iterations.
+* The format is simple, so non-programmers can create and modify them.
+* They let you separate the what (data, config files) from the how (logic, programming).
+
+There is, however, a problem with config files. A simple typo in a config file will often lead to one of the following:
+
+* A difficult to understand parse error.
+* A hard crash.
+* A silent error (it does the wrong thing).
+
+These issues cause what should be *fast iterations* to become *frequent debugging*.
+
+Here are some real-life error messages I’ve seen from typos in config files:
+
+* **KeyError: ‘keyname’**. Ok, so I am missing the key 'keyname' somewhere, but in what file? And where in the file is it missing?
+* **type must be number, but is null**. This could mean there is a key missing somewhere, or that it was set to null rather than a number. But what key? In what file?
+* **Assertion failed: p**. This plus a stack trace to the parser. I wish I was kidding you.
+
+The specific format of the config file varies. Some people like [JSON](https://en.wikipedia.org/wiki/JSON), some use [YAML](https://en.wikipedia.org/wiki/YAML), but there is also many, many, home-brew formats out there. I personally prefer a relaxed and enhanced version of JSON, but the format is not the point of this article. This article will use JSON for examples, but it applies to any format that uses objects (sometimes called maps) with key-value pairs to provide a data hierarchy.
+
+
+## An illustrative example
+Let say you written some code to parse a config of monsters in your game:
+
+~~~ C++
+std::vector&lt;Monster&gt; parse_monsters(const Config& monster_list)
+{
+    std::vector&lt;Monster&gt; monsters;
+    for (const Config& element : monster_list) {
+        Monster monster;
+        monster.id     = element["id"];
+        monster.health = element["health"];
+        monster.armor  = element.get_or_default("armor", 0);
+        monster.color  = element.get_or_default("color", DEFAULT_COLOR);
+        monsters.push_back(monster);
+    }
+    return monsters;
+}
+~~~
+
+So each monster must have a `name` and a `health`. They can also specify `armor` and `color`, but these can be omitted if they should have the default values.
+
+You then have a config file which lists all the monsters. One day, a game designer working at your company starts adding some new monsters:
+
+~~~ C
+ 1: "monsters": [
+ 2:   {
+ 3:     "id":     "beast",
+ 4:     "health": 100,
+ 5:     "armor":  100
+ 6:   },
+ 7:   {
+ 8:     "id":     "dragon",
+ 9:     "heatlh": 200,
+10:     "armor":  100,
+11:     "colour": "red"
+12:   },
+13:   {
+14:     "id":     "werewolf",
+15:     "health": 60,
+16:     "colour": "blue"
+17:   }
+18: ]
+~~~
+
+He starts the game and immediately get a crash with the error message: "type must be number, but is null". At this point he will get up from his desk and tap you on your shoulder (even though you are wearing headphones!) and tell you he needs help because *"the game crashes"*. After some non-trivial time of debugging you manage to figure out that he had mistyped `health` for the dragon. You fix the error and the error message is gone, and the new monsters appear in the game. You go back to your desk and try to remember who you are and why you seem to be working as a spell checker.
+
+After ten minutes (just when you started getting productive again) the same game designer taps you on your shoulder again to tell you *"it isn’t working."*. You take a deep breath and walk over to his computer to see what the problem is. It turns out all the new monsters have the default color even though the config file *clearly* specifies that the dragon should be red and the werewolf should be blue. At this point you look up the piece of code that parses the monsters and you eye it carefully until you finally discover that the programmer is American and the game designer is British (in case you missed it: `color` ≠ `colour`).
+
+To be clear: I do not blame the fictional game designer for interrupting me to help him. This is clearly a case of a bad interface and it is wrong to blame the user. But let’s consider an alternative reality where the first time he tried the code he would have got the following errors:
+
+~~~
+monsters.json:7: Missing key 'health'
+monsters.json:9: Unused key 'heatlh'
+monsters.json:11: Unused key 'colour'
+monsters.json:16: Unused key 'colour'
+~~~
+
+If that was the case you could probably have kept working undisturbed. What a wonderful world that would have been! Can we make it reality?
+
+
+## Schemas to the rescue?
+The traditional solution to these issues have been [schemas](http://json-schema.org/). The idea is that you first specify the structure of valid config files in a schema file and then validate all given config files against that schema. The schema validator would then give you good error messages to pinpoint your typos.
+
+This would indeed have detected both typos in the example above, but writing schemas takes time. You also need to update them whenever you edit the format, which just means double work. In some cases this effort may be worth it. However, in the hectic *"let’s try this real quick"* world of game development schemas won’t cut it.
+
+Luckily we can catch most errors with something far simpler.
+
+
+## A smarter config library
+I propose that more config libraries take the issue of error reporting more seriously by providing **file name and line number** for **all** cases, including:
+
+* Type errors (expecting `"color"` to be an array of numbers when it turns out to be a string).
+* Missing key errors (e.g. the code expecting there to be a `"health"` key but there isn’t).
+
+Additionally, libraries should warn about *unused* keys, like `"colour"` in the example above. This is a bit more tricky. One way is to flag keys when they are accessed and then recursively check the entire config structure for non-flagged keys once the everything *should* have been parsed.
+
+I do not think this is asking for much. In fact, this is precisely what compilers have been doing for us for ages: catching simple typos and warning about unused variables. And *always* with a file name and line number. Why can’t our config libraries live up to the same standard?
+
+(Obviously this level of error detection and reporting will have a small run-time overhead. However, if this is an issue you should probably consider translating your config files to a binary format anyway before shipping your game.)
+
+To prove that writing such a library is not too difficult, I wrote one for C++ I call [Configuru](https://github.com/emilk/configuru), but that is the topic of [another blog post](2016_01_26_configuru.html).
+
+
+## Handling errors
+It is important that the code is written so that errors are not only caught, but also presented to the user in a good way.
+
+The two most common ways to handle errors are:
+
+* Hard crashes
+* Print an error in a log and/or on-screen.
+
+The problem with a hard crash is that it breaks one of the great benefits of config files: fast iterations. It also kills the joy in you. The problem of the log/print approach is that the error message will be ignored. At Arrowhead I once set it up that errors in our GUI code generated big red text that covered half of the screen. People *still* missed it. If a message *can* be ignored, it *will* be ignored.
+
+I suggest that any error should lead to a full screen error message that won’t go away until the error is fixed. The game should still keep going, but paused. Pseudo-code would be:
+
+~~~ Lua
+function load_level(filename):
+  while True:
+    try:
+      cfg = parse_config(filename)
+      level = parse_level(cfg)
+      cfg.check_for_unused_keys()
+      return level
+    catch error:
+      show_message(error)
+      wait_for_file_change(filename)
+~~~
+
+Setting this up in practice can be hard, but it is, I believe, something worth striving for.
+
+
+## Case study: Quake III shader files
+[Quake III Arena](https://en.wikipedia.org/wiki/Quake_III_Arena) had a novel `.shader` file format for specifying how materials looked. In the source code you can at one point find this snippet:
+
+~~~ C++
+if ( !Q_stricmp( token, "none" )
+  || !Q_stricmp( token, "twosided" )
+  || !Q_stricmp( token, "disable" ) )
+{
+  shader.cullType = CT_TWO_SIDED;
+}
+else if ( !Q_stricmp( token, "back" )
+       || !Q_stricmp( token, "backside" )
+       || !Q_stricmp( token, "backsided" ) )
+{
+  shader.cullType = CT_BACK_SIDED;
+}
+else
+{
+  ri.Printf( PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token, shader.name );
+}
+~~~
+
+I’m guessing the original code only covered `"none"` and `"back"` and the other fallbacks were added just because some artist once typed `"backide"` instead of `"back"` and did not see the resulting warning. That’s why all errors should be **LOUD**!
+
+
+## Summary
+The next time you design an API, consider the principles that underlie good design. A good place to start are the popular [Nielsen’s heuristics]("https://en.wikipedia.org/wiki/Heuristic_evaluation#Nielsen"). Here’s point #9:
+
+!!! note
+    **Help users recognize, diagnose, and recover from errors**: Error messages should be expressed in plain language (no codes), precisely indicate the problem, and constructively suggest a solution.
+
+It is time that we programmers take this message to heart so we can spend less time debugging and more time being productive.
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

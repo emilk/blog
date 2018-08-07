@@ -1,0 +1,116 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+<head><title>Type safe handles in C++</title></head>
+# Type safe handles in C++
+<p id="date">May 6, 2014</p>
+
+
+## The problem
+Let's say you have a system of resources and you identify them using integers as handles. These integers are meaningless to the user, but internally they may be indices into an array, or just a running count. Your interface could look like this:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+int create_sound(...);
+void destroy_sound(int id);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is really bad code. Why is the first function returning an integer? What am I supposed to do with it? Let's improve it slightly:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+using sound_id = int;
+sound_id create_sound(...)
+void destroy_sound(sound_id id);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Much better! It's now clear that the returned value should be treated as an identifier, not as an integer. It's also much more future proof – we can change `sound_id` to be a `uint64_t` if the need arises without having to rewrite all the uses of it. In short, one line of code has bought us self-documentation and future-proofing. Wonderful! The problem is that a type alias is not type safe in C++. This means code like this will compile:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+using sprite_id = int;
+void destroy_sprite(sprite_id);
+
+sound_id fx = create_sound(...);
+destroy_sprite(fx);  // An honest mistake!
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Don't fool yourself into thinking that this sort of things won't happen – [if they can happen, they will happen](https://en.wikipedia.org/wiki/Murphy's_law)! The compiler cannot catch these problems, and the code will probably will run fine – for a while. These sort of bugs are very hard to track down, and a waste of programmer's time. Luckily, there is a very simple solution.
+
+
+## Type tags to the rescue
+
+The solution is not only simple, but solves all our problems with zero overhead. Here it is:
+
+<script type="preformatted">
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+template<class Tag, class T, T default_value>
+class ID
+{
+public:
+    static ID invalid() { return ID(); }
+
+    // Defaults to ID::invalid()
+    ID() : m_val(default_value) { }
+
+    // Explicit constructor:
+    explicit ID(T val) : m_val(val) { }
+
+    // Explicit conversion to get back the T:
+    explicit operator T() const { return m_val; }
+
+    friend bool operator==(ID a, ID b) { return a.m_val == b.m_val; }
+    friend bool operator!=(ID a, ID b) { return a.m_val != b.m_val; }
+
+private:
+    T m_val;
+};
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</script>
+
+As you can see, this is simply a thin wrapper around a representation of your choice. We can make sure we only allow operations that make sense, such as comparisons. See the `Tag` parameter? You'll notice that it isn't actually used anywhere, so what's it for? Well, this is how it's used:
+
+<script type="preformatted">
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct sound_tag{};
+typedef ID<sound_tag, int, -1> sound_id;
+
+struct sprite_tag{};
+typedef ID<sprite_tag, int, -1> sprite_id;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</script>
+
+The `sound_tag` and `sprite_tag` are never used for anything but to make sure that `sound_id` and `sprite_id` is not the same type:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+sound_id  sfx = create_sound();
+sprite_id gfx = create_sprite();
+assert(gfx != sprite_id::invalid());
+destroy_sound(gfx); // ERRROR!
+sfx = gfx; // ERRROR!
+sfx = 42; // ERRROR!
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now the compiler catches all bad usage of the id:s at compile time, just like we wanted! You can also change the internal representation with no issues:
+
+<script type="preformatted">
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+struct sound_tag{};
+typedef ID<sound_tag, uint64_t, 0> sound_id;
+
+struct sprite_tag{};
+typedef ID<sprite_tag, SpriteImpl*, nullptr> sprite_id;
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</script>
+
+## Conclusion
+Type tags provides an easy-to-use way of implementing type-safe identifiers for any use. Best of all: it's free! All the function calls will be inlined, and the size of the ID:s are the same as their internal representation. This is one of the many reasons I love C++ – *zero cost abstractions*.
+
+[Discussion on reddit](http://www.reddit.com/r/cpp/comments/2smwx1/type_safe_identifiers_in_c/).
+
+!!! note
+    **Edit**: As [sbabbi points out](http://www.reddit.com/r/cpp/comments/2smwx1/type_safe_identifiers_in_c/cnr5u16) this is very similar to a [strong typedef](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3515.pdf) (for which we can use `boost::strong_typedef`) . However, the above method has the additional benefit of disallowing operations that doesn't make sense on handles (addition, etc).
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

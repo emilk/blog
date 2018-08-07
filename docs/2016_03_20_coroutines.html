@@ -1,0 +1,85 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+<head><title>Simple coroutines for games in C++</title></head>
+# Simple coroutines for games in C++
+<p id="date">March 20, 2016</p>
+
+
+In games it is very common to have [scripted sequences](https://en.wikipedia.org/wiki/Scripted_sequence) – for instance, a piece of dialogue or a cutscene. I don’t mean these sequences are written in a scripting language (though they might), but that they follow a script like a play or a movie does. Contrary to a movie script however, in a game the script may have some conditional branches (an NPC only saying something if the player choses to ask a certain question, for instance).
+
+Expressing such a sequence in code should be straight-forward  – after all, computer code is very much like a script. However, these scripts are often span minutes and happen while a bunch of other things are also happening. The now obvious solution to this is to put these in a separate thread – but now you open yourself up to race conditions and other nasty thread-related bugs. So what to do?
+
+One solution is a [finite-state machine](https://en.wikipedia.org/wiki/Finite-state_machine). But rewriting a script as a state-machine is always a pain in the ass and the resulting code is much harder to comprehend.
+
+A much nicer solution, and the one we will be focusing on here, is the coroutine. A coroutine is, simply put, like a function you can jump in and out of. This means you can execute a piece of the routine (one line of the script), return to the main thread, then later continue in the coroutine where you left off. This means it acts much like a thread does but only runs when asked to, and gives back execution to the calling thread cooperatively.
+
+Coroutines are an integral part of many languages, such as Lua, but if you have decided to make your game in pure C++, you are out of luck. The third-party library implementations you’ll find (like the ones in [boost](http://www.boost.org/)) often focus on the use case of having thousands of coroutines, meaning they must be very lightweight. This focus on performance comes at the cost of easy-of-use and portability.
+
+For scripted sequences in games you may only need one or a few coroutines running at the same time. This completely removes the constraint on them being light-weight. For this use case I decided to create a very simple coroutine implementation that is just a wrapper around a `std::thread` but with mechanisms to pass the execution from the outer (owning) thread to the inner (coroutine) thread, so that only one thread is running at once. The advantage of using a proper thread is that there is no limit what we can do from the thread. It also plays well with many other tools, like the debugger which shows all running threads and where they are at. Since the calling thread is paused when a coroutine is executed there is no need for mutexes or other syncing of the game state.
+
+In the end, this allows us to write code like this:
+
+~~~ C++
+GameUnit camera = ...;
+GameUnit juliet = ...;
+GameUnit curtains = ...;
+
+cr::CoroutineSet coroutine_set;
+
+coroutine_set.start("end_scene", [&](cr::InnerControl& ic){
+    while (!camera.looking_at(juliet)) {
+        camera.turn_towards(juliet);
+        ic.yield(); // Return to the calling thread
+    }
+    juliet.speak("Romeo, I come! This do I drink to thee.");
+    ic.wait_sec(2.0); // Yield to main thread for the next two seconds
+    auto drink_animation = juliet.animate("drink_poison");
+    ic.wait_for([&](){ return drink_animation.is_done(); });
+    auto fall_animation = juliet.animate("fall_to_the_ground");;
+    ic.wait_for([&](){ return fall_animation.is_done(); });
+    ic.wait_sec(1.0);
+    curtains.animate("drop");
+    ic.wait_sec(2.0);
+});
+
+// Game loop:
+for (;;) {
+    double dt = seconds_since_last_frame();
+    input();
+    update(dt);
+    coroutine_set.poll(dt); // Allow coroutines to run for a short while
+    paint();
+}
+~~~
+
+You can find [my coroutines library on GitHub](https://github.com/emilk/emilib) – feel free to use and abuse all you want. It's a single [.hpp](https://raw.githubusercontent.com/emilk/emilib/master/coroutine.hpp)/[.cpp](https://raw.githubusercontent.com/emilk/emilib/master/coroutine.cpp) pair, and depends only on [Loguru](https://github.com/emilk/loguru) (my logging library), but you can easily remove that if you want to.
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

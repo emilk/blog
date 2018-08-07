@@ -1,0 +1,54 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+![](2016_11_22_unfixable_bug/dod.png)
+
+<head><title>The Unfixable Bug</title></head>
+# The Unfixable Bug
+<p id="date">November 22, 2016</p>
+
+
+It was my second year of university, and I was spending my spare time creating an off-road car racer. I started off with a procedural heightmap generator (based on good old Perlin noise), some texture blending, volumetric fog and water with reflections and refractions. This was all the rage back in 2004!
+
+The next step was adding a car – and here is where my trouble started. Before modeling a pretty car I started with something simpler: a box. I coded up a simple red box and dropped it into the terrain. I launched the game, but the box where nowhere to be found. I had dropped it in the middle of the terrain so I could more easily spot it (it was after all a small box in a large, random terrain) – but I couldn't find it.
+
+The thing about graphics programming is that it can be quite tricky to find the source of a bug. You can't attach a debugger to a pixel shader (not back in 2004 anyway), nor can you log what is happening. What this leaves you is tinkering: playing around with parameters until you find something that has an effect, and then try to reason logically from there.
+
+After eyeing my code carefully I started playing around with a few parameters. At one point I changed the color of the box to white, relaunched the game (I didn't have hot-reloading) and – there it was! A nice little box sitting in the landscape. Finally I was getting somewhere! Maybe I was mixing up my red, green and blue channels with the alpha (opacity) channel? I checked the code again, but found nothing wrong. I changed the color to blue, and the box was again visible. I changed it back to red, and it was gone.
+
+This was weird. Why would the box only be visible when it has a certain color? I checked the pixel shader. I checked the render modes. I even checked the stencil settings. Everything seemed OK – but why was my box invisible when it was red? And only when it was red? I could find it when it was blue, white, black and purple.
+
+I tried resetting the color to red again and – _WTH!?_ – there it was! I was back where I started code-wise, but now the box was visible again. I looked away from the screen _stunned_. When I looked back again, the box was gone. Then it wasn't. And then it was. And then I was enlightened.
+
+The box had been there all along. You see, the bug was not in the software. The bug wasn't even in the hardware. The bug was in wetware. As it turned out, the reason I couldn't see the red box in the green landscape was simple: I am red-green color blind.
+
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+

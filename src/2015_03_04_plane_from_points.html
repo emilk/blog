@@ -1,0 +1,278 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+<head><title>Fitting a plane to many points in 3D</title></head>
+# Fitting a plane to many points in 3D
+<p id="date">March 4, 2015</p>
+
+Let say you have a set of n points in 3D and want to fit a plane to them. In this article I will derive a simple, numerically stable method and give you the source code for it. Sounds like fun? Let's go!
+
+First of all – if you look around the web for an answer you'll get answers that include doing a [singular value decomposition](https://en.wikipedia.org/wiki/Singular_value_decomposition) on a [covariance matrix](https://en.wikipedia.org/wiki/Covariance_matrix) to find the [eigenvector of the smallest eigenvalue](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors). It turns out, however, that this is making things more complicated than they need to be. Let's start with the basics:
+
+A plane is generally described by a normal vector _n = [a, b, c]ᵀ_ and a distance _d_ so that for point _p = [x, y, z]ᵀ_ on the plane _n · p + d = 0_. We can write this as:
+
+\begin{equation}
+ax + by + cz + d = 0
+\end{equation}
+
+Note, however, that this is overdetermined – the solution space (a plane) is three-dimensional, but the above description uses four values. So let’s start off with removing one component by constraining the solution space. We do that by arbitrarily assigning _c = 1_, i.e. that the z-component of the plane normal is always one (note that the length of the normal does not need to be one). If you think this is a potentially problematic assumption you are right – we shall return to this later. For now, let’s define:
+
+\begin{equation}
+\begin{matrix}
+ax + by + z + d = 0 \\
+\therefore \\
+ax + by + d = -z
+\end{matrix}
+\end{equation}
+
+and solve for _a,b,d_. In matrix form:
+
+
+\begin{equation}
+\begin{bmatrix}
+x_{0} & y_{0} & 1 \\
+x_{1} & y_{1} & 1 \\
+& ... \\
+x_{n} & y_{n} & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+a \\
+b \\
+d
+\end{bmatrix}
+
+=
+
+\begin{bmatrix}
+-z_{0} \\
+-z_{1} \\
+... \\
+-z_{n}
+\end{bmatrix}
+\end{equation}
+
+Next we take this matrix, transpose it, and multiply it from the left to perform a [linear least squares]("https://en.wikipedia.org/wiki/Linear_least_squares_(mathematics)"):
+
+\begin{equation}
+\begin{bmatrix}
+x_{0} & x_{1} & ... & x_{n} \\
+y_{0} & y_{1} & ... & y_{n} \\
+1 & 1 & ... & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+x_{0} & y_{0} & 1 \\
+x_{1} & y_{1} & 1 \\
+& ... \\
+x_{n} & y_{n} & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+a \\
+b \\
+d
+\end{bmatrix}
+
+=
+
+\begin{bmatrix}
+x_{0} & x_{1} & ... & x_{n} \\
+y_{0} & y_{1} & ... & y_{n} \\
+1 & 1 & ... & 1
+\end{bmatrix}
+
+\begin{bmatrix}
+-z_{0} \\
+-z_{1} \\
+... \\
+-z_{n}
+\end{bmatrix}
+\end{equation}
+
+After multiplying in the transpose:
+
+\begin{equation}
+\begin{bmatrix}
+\Sigma x_i x_i & \Sigma x_i y_i & \Sigma x_i \\
+\Sigma y_i x_i & \Sigma y_i y_i & \Sigma y_i \\
+\Sigma x_i & \Sigma y_i & N
+\end{bmatrix}
+
+\begin{bmatrix}
+a \\
+b \\
+d
+\end{bmatrix}
+
+=
+
+-
+
+\begin{bmatrix}
+\Sigma x_i z_i \\
+\Sigma y_i z_i \\
+\Sigma z_i
+\end{bmatrix}
+\end{equation}
+
+
+Where _N_ is the number of points. Now here’s the clever part: let us define the _x,y,z_ above to be relative to the centroid (average) of point cloud. Now _Σx = Σy = Σz = 0_ and so we can simplify to:
+
+
+
+\begin{equation}
+\begin{bmatrix}
+\Sigma x_i x_i & \Sigma x_i y_i & 0 \\
+\Sigma y_i x_i & \Sigma y_i y_i & 0 \\
+0 & 0 & N
+\end{bmatrix}
+
+\begin{bmatrix}
+a \\
+b \\
+d
+\end{bmatrix}
+
+=
+
+-
+
+\begin{bmatrix}
+\Sigma x_i z_i \\
+\Sigma y_i z_i \\
+0
+\end{bmatrix}
+\end{equation}
+
+From the last row (_N·d = 0_) we can conclude that _d = 0_. This means that if all points are relative to the centroid of the point cloud, then the plane runs through the origin. In other words: the plane always runs through the average of the input points. We can now get rid of a dimension:
+
+
+
+\begin{equation}
+\begin{bmatrix}
+\Sigma x_i x_i & \Sigma x_i y_i \\
+\Sigma y_i x_i & \Sigma y_i y_i
+\end{bmatrix}
+
+\begin{bmatrix}
+a \\
+b
+\end{bmatrix}
+
+=
+
+-
+
+\begin{bmatrix}
+\Sigma x_i z_i \\
+\Sigma y_i z_i
+\end{bmatrix}
+\end{equation}
+
+Cramer's rule gives us:
+
+\begin{equation}
+\begin{matrix}
+D = \Sigma  xx \times \Sigma yy - \Sigma xy \times \Sigma xy      \\
+a = (\Sigma yz \times \Sigma xy - \Sigma xz \times \Sigma yy) / D \\
+b = (\Sigma xy \times \Sigma xz - \Sigma xx \times \Sigma yz) / D \\
+n = [a, b, 1]^T
+\end{matrix}
+\end{equation}
+
+We can simplify this by multiplying _n_ with _D_ (we are going to need to normalize _n_ anyway) which gives us:
+
+
+\begin{equation}
+\begin{matrix}
+D = \Sigma  xx \times \Sigma yy - \Sigma xy \times \Sigma xy      \\
+a = \Sigma yz \times \Sigma xy - \Sigma xz \times \Sigma yy \\
+b = \Sigma xy \times \Sigma xz - \Sigma xx \times \Sigma yz \\
+n = [a, b, D]^T
+\end{matrix}
+\end{equation}
+
+
+
+
+And that's it! But remember our assumption: the z-component of the plane normal is non-zero. What if it is zero? Then it can be shown that the determinant _D_ above becomes zero and we have division by zero. And even if it is not exactly zero, but close, we still get bad conditioning and thus bad results. So what can we do? Well, at least one of the components of the normal must be non-zero if the points do span a plane. So let’s do the above calculations for three separate assumptions of which component is non-zero. Then we simply pick the most well-behaved one, i.e. the one with the largest determinant.
+
+!!! note
+    **Note**: This method will minimize the squares of the residuals as perpendicular to the main axis, not the residuals perpendicular to the plane. If the residuals are small (i.e. your points all lie close to the resulting plane), then this method will probably suffice. However, if your points are more spread then this method may not be the best fit.
+
+!!! tip
+    **Edit**: I have made an improvement to this method which [you can read about here](2017_09_25_plane_from_points_2.html).
+
+
+Here's the code, in Rust:
+
+~~~~~~~~~~~~~~~ Rust
+// Constructs a plane from a collection of points
+// so that the summed squared distance to all points is minimzized
+fn plane_from_points(points: &[Vec3]) -> Option&lt;Plane&gt; {
+    if points.len() < 3 {
+        return None; // At least three points required
+    }
+
+    let mut sum = Vec3{x:0.0, y:0.0, z:0.0};
+    for p in points {
+        sum += p;
+    }
+    let centroid = sum * (1.0 / (points.len() as f64));
+
+    // Calc full 3x3 covariance matrix, excluding symmetries:
+    let mut xx = 0.0; let mut xy = 0.0; let mut xz = 0.0;
+    let mut yy = 0.0; let mut yz = 0.0; let mut zz = 0.0;
+
+    for p in points {
+        let r = p - centroid;
+        xx += r.x * r.x;
+        xy += r.x * r.y;
+        xz += r.x * r.z;
+        yy += r.y * r.y;
+        yz += r.y * r.z;
+        zz += r.z * r.z;
+    }
+
+    let det_x = yy*zz - yz*yz;
+    let det_y = xx*zz - xz*xz;
+    let det_z = xx*yy - xy*xy;
+
+    let det_max = max3(det_x, det_y, det_z);
+    if det_max <= 0.0 {
+        return None; // The points don't span a plane
+    }
+
+    // Pick path with best conditioning:
+    let dir =
+        if det_max == det_x {
+            Vec3{
+                x: det_x,
+                y: xz*yz - xy*zz,
+                z: xy*yz - xz*yy,
+            }
+        } else if det_max == det_y {
+            Vec3{
+                x: xz*yz - xy*zz,
+                y: det_y,
+                z: xy*xz - yz*xx,
+            }
+        } else {
+            Vec3{
+                x: xy*yz - xz*yy,
+                y: xy*xz - yz*xx,
+                z: det_z,
+            }
+        };
+
+    Some(plane_from_point_and_normal(centroid, normalize(dir)))
+}
+~~~~~~~~~~~~~~~
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

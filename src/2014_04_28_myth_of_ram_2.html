@@ -1,0 +1,44 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+![Stockholm City Library. Photo by Arild Vågen.](2014_04_28_myth_of_ram_2/library.jpg)
+
+<head><title>The Myth of RAM, part II</title></head>
+# The Myth of RAM, part II
+<p id="date">April 28, 2014</p>
+
+In [the previous article](2014_04_21_myth_of_ram_1.html) I measured random memory access times and found them to roughly follow _O(√N)_. But why? Obviously the direct culprit is the cache hierarchy. With smaller problem sizes we can use the quicker caches. As my memory consumption goes up, I have to rely on slower and slower memory to get the job done, ultimately swapping to disk.
+
+Now you may be thinking that this is all trivial. Surely I (or someone richer than me) could purchase enough fast L1 type memory to fit all the data, and that would yield a flat graph of _O(1)_ memory accesses. Sadly, 6 GiB of L1 memory is not only expensive, but would also be way more than could fit on a CPU die. It would need to be further away, increasing the latency of the data. And if the problem grew even more we would need even more RAM taking up even more space requiring it to be even further from my CPU, making it slower still. But how much slower? Let’s do some thinking.
+
+
+## The round library
+Allow me to set up a thought experiment! Let us say you are a librarian working in a circular library, with your desk at the center. The time it takes to to fetch any one book is now bounded by the distance you have to walk, and the worst case scenario will be walking to the edge of the library, i.e. the full radius.
+
+Now let's say your sister is working in another library which is also circular, but with twice the radius. She may be required to walk twice the distance to retrieve a book. However, her library has four times the area of your library and thus can contain four times as many books. In general, the amount of books _N_ that fits in a library is proportional to the square of the radius _r_ of the library, and we write _N ∝ r²_ (the symbol _∝_ is pronounced "proportional to"). And since the time _T_ it takes to retrieve a book is proportional to _r_ we can write _N ∝ T²_ or _T∝√N_ or _T=O(√N)_.
+
+This is roughly analogous to a CPU which needs to retrieve a piece of memory from it's library: the RAM. Of course the speed of the "librarian" matters, but that is bounded by the speed of light, and there is not much we can do about that. For example, within one clock cycle of a 3GHz CPU, light reaches about 10 cm. So to roundtrip, any memory that should be instantly accessible can be at most 5cm from the CPU.
+
+So how much information can we fit within a certain distance *r* from the cpu? Above we assumed a circular flat library – but what if it was spherical? The amount of memory that could fit within a radius _r_ would then be proportional to _r³_. In practice computers are actually rather flat – this is due partly to form-factor, but also due to problems with cooling. Maybe one day we will figure out how to build and cool three dimensional blocks of memory, but for now the practical limit of the amount of information _N_ within a radius _r_ seems to be _N ∝ r²_. This also holds true for even more distant memory, such as data centers (which are spread out on the two-dimensional surface of the earth).
+
+But can we, in theory, do better? To answer that, we need to learn a bit about black holes and quantum physics!
+
+
+## The theoretical limit
+The amount of information that can fit within a sphere with radius _r_ can be calculated using the [Bekenstein bound](https://en.wikipedia.org/wiki/Bekenstein_bound), which says that the amount of information that can be contained by a sphere is directly proportional to the radius and mass: _N ∝ r·m_. So how massive can a sphere get? Well, what is the most dense thing in existence? A black hole! [It turns out](https://en.wikipedia.org/wiki/Black_hole#Physical_properties) that the mass of a black hole is directly proportional to its radius: _m ∝ r_. This means that the amount of information that can fit inside a sphere of radius _r_ is _N ∝ r²_. And so we come to the conclusion that the amount of information contained in a sphere is bounded by the area of that sphere – not the volume!
+
+In short: if you try to squeeze too much L1 cache onto your CPU it will eventually collapse into a black hole, and that would make it awkward to get the results of the computation back to the user.
+
+So we come to the conclusion that _N ∝ r²_ is not only a practical limit, but also the theoretical limit! This means the laws of physics sets a limit of the latency of memory: To access any of _N_ bits of data, you will need to communicate a distance that is proportional to _O(√N)_. In other words, for each 100-fold increase in problem size, we expect to see a 10-fold increase in the time it takes to access one element. And that is exactly what our data showed in [part one](2014_04_21_myth_of_ram_1.html)!
+
+So we now have our two pieces of evidence: practical and theoretical. So what can we learn from it? Continue to the ~~concluding~ [Myth of RAM, part III](2014_04_29_myth_of_ram_3.html).
+
+!!! Note
+    Read the discussion of the Myth of RAM series on [Reddit](https://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/) and [Hacker News](https://news.ycombinator.com/item?id=12383012).
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

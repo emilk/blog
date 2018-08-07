@@ -1,0 +1,121 @@
+body{
+    padding-top: 5%;
+
+    font-family: 'Montserrat', sans-serif;
+
+    color: #424242;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0px;
+    line-height: 1.7em;
+}
+
+.md a {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+}
+
+
+/* No table of contents: */
+.mediumTOC { display: none; }
+.longTOC { display: none; }
+
+
+/* no numbering of headings */
+.md h1:before, .md h2:before, .md h3:before, .md h4:before { content: none; }
+
+#header * {
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* I like big bits */
+#site-title {
+    border-bottom: none;
+    font-size: 48px;
+    font-weight: 600;
+    letter-spacing: 6px;
+    margin: 32;
+}
+
+/* Adapt for smaller screens:; */
+/*@media (max-width: 300px) {
+  #site-title {
+      font-size: 20px;
+  }
+}*/
+
+/* Thoughts on code */
+#site-subtitle {
+    border-bottom: none;
+    font-size: 20px;
+    font-weight: 300;
+    color: #ccc;
+    letter-spacing: 4px;
+}
+
+/* Name of article */
+.md h1 {
+    margin-top: 0;
+    border: none;
+    padding-top: 0;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.4em;
+    text-align: center;
+}
+
+#date {
+    text-align: center;
+}
+
+
+.imagecaption {
+    padding-left: 50;
+    padding-right: 50;
+    text-align: center;
+}
+
+
+/* Make `inline code` pop a bit. */
+.md code {
+    /* TODO: only appy to `inline code`*/
+    background-color: rgba(0,0,0,0.05);
+}
+
+/* Undo background for non-inline code: */
+.md .listing code {
+    background-color: rgba(0,0,0,0.0);
+}
+
+/* Indent code using ~~~~~~~~~: */
+pre.listing.tilde {
+    margin-left: 0;
+}
+
+
+
+/* Make nicer tables:; */
+.md table.table {
+    /*font-size: 90%;*/
+}
+.md table.table th {
+    border: none;
+}
+.md table.table tr, .md table.table td {
+    border: none;
+}
+
+
+
+/* my copyright notice */
+.footer {
+    text-align: right;
+    padding-top: 80px;
+}
+
+/* The footer that Markdeep adds */
+.markdeepFooter {
+    padding-top: 0;
+}

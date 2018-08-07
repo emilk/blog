@@ -1,0 +1,117 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+<head><title>Error Context – a stack trace for data</title></head>
+# Error Context – a stack trace for data
+<p id="date">February 28, 2016</p>
+
+
+## Introduction
+This article describes how you can capture local variables in an *error context stack* that gets logged on a crash. It outlines how to implement such a feature and introduces the feature in my logging library [Loguru](https://github.com/emilk/loguru), which was introduced [in a previous blog post](2015_11_07_loguru.html).
+
+## The problem
+Logging is a great tool for, among other things, debugging crashes. By crash I mean "unscheduled exit" of any kind, be it a SIGSEGV or an assertion failure. If – oh, let's face it: *when* – your program crashes a log will help you:
+
+* See what happened that lead up to the crash (previous log lines).
+* See what the program was doing at the time of a crash (the stack trace).
+* See direct cause of crash (SIGSEGV, which assert failed, ...)
+
+That's great, but sometimes it is not enough. Often a crash is the result of unexpected data. For instance, a crash could be caused by an extra space at the end of a string, or an integer being negative when your code didn't expect it to be. Or maybe the crash happened during the processing of a bunch of files and you want to know the name of the file that caused the crash. What you really want is the ability to inspect the values of arguments and locals at different parts of the stack. (Of course a debugger is the best tool for this job, but often you are using the log file to debug a crash in production or a crash you can't yet reproduce).
+
+The naïve approach is to log all data that might be interesting. That will certainly help with the debugging but it has two huge downsides:
+
+* It will fill up the log file with a lot of spam, drastically decreasing its readability.
+* It might slow down your program significantly to log that much information.
+
+What you really want is to only log that data *if* there is a crash. That's exactly like the stack trace, by the way: you don't constantly log which function is being executed, only when there is a crash do you want that info. But can we design something like that for data?
+
+## Solution outline
+It turns out we can! At least in C++ with the help of RAII. Here's the outline of a solution:
+
+~~~ C++
+struct DataInfo
+{
+    const char* description;
+    const char* value;
+};
+
+thread_local std::vector&lt;DataInfo&gt; thread_error_stack;
+
+struct ErrorContextScope
+{
+    ErrorContextScope(const char* description, const char* value)
+    {
+        thread_error_stack.push_back(DataInfo{description, value});
+    }
+    ~ErrorContextScope()
+    {
+        thread_error_stack.pop_back();
+    }
+};
+
+void print_error_context()
+{
+    for (const DataInfo& info : thread_error_stack) {
+        fprintf(stderr, "%s: %s", info.description, info.value);
+    }
+}
+
+MyLoggingLibrary::add_crash_callback(print_error_context);
+
+// --------------------- Usage:
+
+void production_code(const char* file_name, const char* unit_id)
+{
+    ErrorContextScope ec_file_name("file_name", file_name);
+    ErrorContextScope ec_unit_id("unit_id", unit_id);
+    crashy_code();
+}
+~~~
+
+Now, if `crashy_code` crashes, the values of `file_name` and `unit_id` will be written to the log file. If it doesn't crash, nothing is logged and the code did not slow down by much at all. I first saw this idea in the game engine [Bitsquid](http://bitsquid.blogspot.se/2012/01/sensible-error-handling-part-1.html) but this direct approach has several limitations:
+
+* Coming up with dummy stack variable names like `ec_file_name` and `ec_unit_id` is tedious.
+* You might want to also print `file:line` of where the x/y variables are captured.
+* Supports only one type (`const char*`) – you probably want to capture floats, integers and your own custom types.
+
+A few weeks ago I decided to come up with a solution to these limitations. The first two problems can be easily solved by a macro, but supporting custom types is more difficult — especially if you still want to keep the code snappy. It took me a while to figure out how to do that in a library-friendly manner, but in the end I came up with an approach where not only the data is captured for each stack entry, but also a pointer to a function for formatting that data into a string. That way different types will be formatted correctly.
+
+## Loguru solution
+I've added support for Error Contexts in my logging library [Loguru](https://github.com/emilk/loguru). Out of the box they can capture `const char*`, `char`, all integer types and `float/double/long double`. Furthermore, you can add support for your own types with a few lines of code (see `LOGURU_DECLARE_EC_TYPE` and `ec_printer_impl` in [`loguru.hpp`](https://github.com/emilk/loguru/blob/master/loguru.hpp) for details). Here's what using it looks like:
+
+~~~ C++
+void process_customers(const std::string& filename)
+{
+    ERROR_CONTEXT("Processing file", filename.c_str());
+    for (size_t i = 0; i < num_customers; ++i) {
+        ERROR_CONTEXT("Customer index", i);
+        if (i == 42) { crashy_code(); }
+    }
+}
+~~~
+
+And when you get a crash:
+
+~~~
+[...stack trace...]
+------------------------------------------------
+[ErrorContext]                main.cpp:3   Processing file:    'customers.json '
+[ErrorContext]                main.cpp:6   Customer index:     42
+------------------------------------------------
+~~~
+
+Notice how the quotes around `'customers.json '` helps you discover that there is an extra space there, which could be the cause of the crash.
+
+## Limitations
+As great a tool as error contexts are, they do have a few limitations:
+
+* You need to explicitly capture each variable with an `ERROR_CONTEXT`.
+* For speed, you probably want to capture large data by reference (like `filename.c_str()` above where Loguru does not copy the string, just stores a pointer to it). This means you have to be careful not to change or destroy the data during the scope of the `ERROR_CONTEXT`.
+* A very small performance hit (about 15 nanoseconds on my MacBook Pro). However, that's less than half a percent of the time it would have taken to write the data to the log file (about 4ms).
+
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

@@ -1,0 +1,84 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+<head><title>Introducing Configuru – the user friendly config library for C++</title></head>
+# Introducing Configuru – the user friendly config library for C++
+<p id="date">January 25, 2016</p>
+
+
+## Background
+In my previous blog post, entitled [*You deserve great error messages*](2016_01_25_error_messages.html) I wrote about how all API:s should provide great error messages, and that config libraries (JSON parsers etc) have been in particular lacking in this area. I also introduced the idea of warning about keys that are never read in code, as that is most likely a bug.
+
+In this blog post I introduce a C++ library for parsing, editing and writing config files which follow the ideas set out in [the previous blog post](2016_01_25_error_messages.html). I strongly recommend you read through that article before reading on.
+
+## Configuru
+For a home game project I started on last year I developed [*Configuru*](https://github.com/emilk/configuru), a C++ Config library which handles JSON as well as a simplified/extended dialect of JSON that I simply call *CFG*. The library has great JSON compliance and although it does not compete with other libraries in speed, it does, I believe, have the best error messages of any library out there. Here are just a few examples ([more on GitHub](https://github.com/emilk/configuru#error-messages)):
+
+~~~ C
+config.json:1:16: Expected : after object key
+{ "is_this_ok" = false }
+               ^
+
+`config.json:4: Failed to find key 'keyname'`
+(The line number is that of the object missing they key.)
+
+
+`config.json:2: Key 'colour' never accessed`
+~~~
+
+This last one is particular interesting because it is an example of something you are used to seeing from compilers (warning about unused variables), but I doubt you have ever seen from a JSON parser before. The motivation for this particular warning is described in detail in [the previous blog post](2016_01_25_error_messages.html).
+
+Configuru also has some other very nice (and optional) features:
+
+### Enforces indentation
+A lot of non-programmers struggles with keeping their `[]` and `{}` matched because they do not have the habit of indenting. This leads to messy looking config files and when a brace is forgotten it can be hell to figure out where they should go. Configuru enforces indentation which means that if you forget a bracket or brace, Configuru will name the exact line where it should have appeared (or the exact line where you used the wrong indentation). The error messages are also helpful (`config.json:42: Bad indentation: expected 3 tabs, got 2`).
+
+Enforcing indentation may make you think of Python, but interestingly this has also [been added to GCC6](https://gnu.wildebeest.org/blog/mjw/2016/01/09/looking-forward-to-gcc6-nice-new-warnings/) as an optional warning (a warning which would have caught [one of the worst OSX security vulnerabilities](https://www.imperialviolet.org/2014/02/22/applebug.html)).
+
+### Preserves comments
+When you load a config file and edit it (in C++) and save it again, all comments will still be there in the written file attached to the right key/value. This is great for when you have a hand-written config-file (with helpful comments) and have an in-game editor (slider etc) for adjusting values in the config file.
+
+### Much much more
+If you use the CFG format you get:
+
+* Python-style multi-line strings.
+* C#-style verbatim strings.
+* Binary and hexadecimal numbers.
+* +inf, -inf, +NaN are valid numbers.
+* Optional trailing commas in lists and objects.
+* All commas optional.
+* Extremely pretty printing.
+
+Configuru is a single header and in public domain.
+
+Read more at <https://github.com/emilk/configuru>.
+
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

@@ -1,0 +1,45 @@
+<!-- If we insert a header like below, the title ("Markdeep bugs" isn't rendered correctly) -->
+(insert empty.html here)
+
+**Markdeep bugs**
+
+# Syntax highlighting fails
+## Constructor initialization
+This works:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+Foo() : m_member(bar) { int x; }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+So does this:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+explicit Foo() { int x; }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This doesn't:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c++
+explicit Foo() : m_member(bar) { int x; }
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+## Function pointer failure
+This works:
+~~~~~~~~~~~~~~~~~ C++
+void foo(float foo) { }
+~~~~~~~~~~~~~~~~~
+
+This doesn't:
+~~~~~~~~~~~~~~~~~ C++
+void foo(void(*function_ptr)()) { }
+~~~~~~~~~~~~~~~~~
+
+## No syntax highlighting for diff files?
+
+~~~ diff
+--- paths.py
++++ paths.py
+@@ -1,4 +1,4 @@
+-RESULT_DIR = "result"
++OUTPUT_DIR = "output"
+~~~
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js?"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

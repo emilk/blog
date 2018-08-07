@@ -1,0 +1,65 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+
+<head><title>Responsiveness</title></head>
+# Responsiveness
+<p id="date">May 13, 2014</p>
+
+Click this button. Go ahead!
+
+<center>
+  <img src="2014_05_13_responsiveness/click_me.png" width="96" height="32" onclick="this.src='2014_05_13_responsiveness/good_job.png'" />
+</center>
+
+Well, that was dull! Like any sensible button, when you clicked it, something happened. That's what buttons are designed to do. Then there is this kind of button:
+
+<center>
+  <img src="2014_05_13_responsiveness/click_me.png" width="96" height="32" onclick="var self = this; setTimeout(function(){
+          self.src='2014_05_13_responsiveness/good_job.png';
+      }, 4000);" />
+</center>
+
+How did that feel? Did you wonder if something was wrong? Did you perhaps click it several times? Did you suspect at some point that it wasn't a button at all? Of course you did. Sadly, these types of buttons can be found in bad user interfaces everywhere – from ticket machines to ATM:s, from web sites to coffee machines.
+
+The difference between a good button and a bad button is called *responsiveness*. Whenever you interact with something that something should respond right away to tell you that you action was recognized. If it fails to respond it feels inert, like a rock. A button should not a be a rock. It should yield and tell you that you managed to hit it and that the computer is now doing your bidding.
+
+Of course it's now always possible to deliver a result right away. Sometimes you have to wait for a slow process to complete – tickets needs to be printed, money counted, web sites rendered and coffee grounded. *But that's no excuse to fail to give feedback!* Here, try this:
+
+<center>
+    <img src="2014_05_13_responsiveness/click_me.png" width="96" height="32" onclick="var self = this; self.src='2014_05_13_responsiveness/wait.png';
+    setTimeout(function(){
+        self.src='2014_05_13_responsiveness/good_job.png';
+    }, 4000);" />
+</center>
+
+Like in the previous example the result ("Good job!") was delivered in four seconds, but this time you *knew* that you had managed to click a working button and that the machine was now busy doing something. That makes all the difference!
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

@@ -1,0 +1,50 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+![](2014_04_29_myth_of_ram_3/ram.jpg)
+
+<head><title>The Myth of RAM, part III</title></head>
+# The Myth of RAM, part III
+<p id="date">April 29, 2014</p>
+
+This is the third article in my Myth of RAM series. If you haven't read [part I](2014_04_21_myth_of_ram_1.html) and [part II](2014_04_28_myth_of_ram_2.html), I encourage you to do so now.
+
+In [part I](2014_04_21_myth_of_ram_1.html) I measured the overhead of a random memory access and found it to be roughly _O(√N)_. In [part II](2014_04_28_myth_of_ram_2.html) I investigated the theoretical limit and found it to be _O(√N)_. Together, these two articles should convince you that it's time to start thinking differently about RAM. In particular, we need to stop thinking about RAM accesses as being a constant time operation. So why do so many still insist of thinking of a memory access as being _O(1)_?
+
+
+## A historical perspective
+It used to be true that a CPU was much slower than RAM. Generally, it was much quicker looking something up in memory than computing it. Lookup tables for sines and logarithms where standard practice – but no more. CPU performance have increased far more rapidly than RAM speeds and latency. Modern CPU:s spend most of their time waiting for RAM. This is why we have the many layers of cache. This is a trend I am sure will continue for quite a while, and that is why I believe it is important to revisit old truths.
+
+At this point some of you may argue that the whole point of [Big-O](https://en.wikipedia.org/wiki/Big_O_notation) analysis is to let us ignore abstract architectural details such as memory latency. This is correct – but I argue that _O(1) is the wrong abstraction_. In particular, Big-O notation is designed to hide constant factors, but RAM accesses is not a constant time operation – not in theory, and not in practice.
+
+It used to be true that on most computers all memory accesses where equally expensive and thus _O(1)_ – but this is no longer true and haven't been true for quite a while. I believe we should start thinking differently about memory accesses, and a good start is to get rid of the idea of _O(1)_ memory access and replace it with _O(√N)_.
+
+
+## Implications
+The cost of a memory access depends on the amount of memory you are accessing as _O(√N)_, where _N_ is the amount of memory you are touching between each memory access. This means that if all you do is touch the same list/table over and over again, the following holds true:
+
+Iterating through a linked list is a _O(N√N)_ operation. A binary search is a _O(√N)_ operation. A hash map lookup is a _O(√N)_ operation. In fact, **looking up something randomly in any sort of database is, at best, a _O(√N)_ operation** (where _N_ is the size of the database).
+
+Note, however, that it matters what you do between subsequent list/table operations. If your program is periodically touching _N_ amount of memory, then any one memory access is going to be _O(√N)_. So if you iterate through a list of size _K_ you will pay _O(K√N)_. If you iterate through it again (without touching any other memory first) you will this time get _O(K√K)_. This teaches us an important lesson: **if you're going to touch the same memory many times, keep the accesses close together in time**.
+
+If you instead iterate through an array of size _K_ you will only pay _O(√N + K)_ since it's only the first memory access that's random. Re-iterating over it will cost _O(K)_. This teaches us an even more important lesson: **If you plan to iterate through it, use an array**.
+
+!!! Warning
+    **WARNING: Many languages do not support proper arrays**. Languages like Java and most scripting languages store all objects on the heap which means an object array is actually an array of pointers. If you are iterating through an array of pointers and following each pointer, you are no better off than if you were using a linked list. Iterating through an array of objects in Java is *O(K√N)*. This can be mitigated by allocating all the objects in order right after each other, in which case the allocator will hopefully put them next to each other in memory. But if you are going to be allocating the objects at different times or shuffling them around, then you are out of luck.
+
+
+## Conclusion
+Memory access patterns matters, and matters a lot. You should always try to access memory in a predictable pattern, and keep random memory accesses at an absolute minimum. This is hardly news, but it bears repeating. However, what I hope you take home from this article is a new tool for incorporating cache awareness to complexity analysis. That tool is the idea that **memory accesses costs _O(√N)_**. The next time you do a complexity analysis – keep this in mind. If you mess with the RAM, you'll get the horns!
+
+Still not convinced? Think I'm misunderstanding Big-O? Please check out [the FAQ in Part IV](2015_02_09_myth_of_ram_4.html)!
+
+
+!!! Note
+    Read the discussion of the Myth of RAM series on [Reddit](https://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/) and [Hacker News](https://news.ycombinator.com/item?id=12383012).
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

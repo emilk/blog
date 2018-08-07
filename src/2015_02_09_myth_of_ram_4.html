@@ -1,0 +1,92 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+![Image by [Lisa Frick](https://lisafrick.se)](2015_02_09_myth_of_ram_4/qa.png).
+
+<head><title>The Myth of RAM, part IV</title></head>
+# The Myth of RAM, part IV
+<p id="date">February 9, 2015</p>
+
+Welcome to another installment of The Myth of RAM! After [Part I hit Reddit](http://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/), it sparked a lot of comments. It is obvious that a lot of people misunderstood the point of my article. So in this special-edition installment I will try to answer some of the misunderstanding and criticism. Here we go!
+
+
+## "What do you mean by "_RAM_"?"
+I mean a random memory access. I do not intend a specific hardware implementation. My arguments are intended to be applicable across all hardware. I understand now that it was rather careless of me to use ‘RAM’ in the title, thought it would be a bit long-winded to call the articles “The Myth of Being Able to Access Memory in a Random Manner in Constant Time”.
+
+
+## "What do you mean by random memory access?"
+Unpredictable, i.e. defeating any [prefetcher](https://en.wikipedia.org/wiki/Cache_prefetching), no matter how smart. If you are visiting memory in a linear manner, that is not random (and any modern prefetcher would help you out). If you are accessing memory unpredictably, the prefetcher is useless, and your memory access time becomes bounded by _O(√N)_.
+
+
+## "In _O(√N)_, what is _N_?"
+_N_ is the amount of memory you are regularly visiting in your algorithm. Each memory access will then cost _k√N_ time for some constant _k_.
+
+
+## "Your article is about modern caches, and is thus hardware specific"
+It is not. Let me borrow and extend [this analogy](http://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/cofntmm):
+
+Let's say you have a deck of cards. How long would it take you to find a named card, based on the size of the deck? If the deck is small you can fit it in one hand, and finding the card would be quick. If you get up to a thousand cards you need to start placing some on the table in front of you and you will have to reach out to get a card. If the number of cards grows more, you will have to fill your room with cards and fetching a given one – even if you know exactly where it is – would take even more time. As the number of cards keeps growing you need to spread out the cards in your apartment, your building, your block, your city, etc. The question I want to answer is how long will it take you to fetch a card based on the number of cards _N_, and I argue that it is some constant _k_ times _√N_, i.e. _O(√N)_. In the example above this is due to you spreading out the cards on a two-dimensional surface. In [Part II](2014_04_28_myth_of_ram_2.html) I argue that the limits holds even if you try to put your cards in a 3D structure of some kind.
+
+
+
+## "Big-O is not about time"
+Big-O is a mathematical tool to analyze how a function grows with respect to some input. You can use Big-O to analyze the amount of memory a data structure needs as a function of the number of elements. You can use Big-O to analyze how the number of connections in a social graph grows with the number of people in the graph. You can use Big-O to analyze the number of instructions a CPU needs to execute as a function of the problem size. You can also use Big-O to analyze the time it takes to access a piece of memory as a function of the amount of memory you are regularly accessing. It’s not a better or worse use for Big-O, it’s just a different one. And if you care about execution speed (or battery usage), it is a pretty useful one.
+
+
+
+## "You are re-defining Big-O to mean execution time!""
+Well, no. I’m not “re-defining” anything. I’m _applying_ Big-O analysis to measure the latency of a memory access.
+
+When somebody says “Iterating through a linked list is a _O(N)_ operation” what they mean to say is “The number of instructions needed to be executed grows linearly with the size of the list.”. That is a correct statement. The argument I’m trying to make is that it would be a mistake to also assume that the amount of _time_ needed would grow linearly with the size of the list as well. This is an important distinction. If you only care about the number of instructions executed that’s fine, you can use Big-O for that! If you care about the time taken, that’s fine too, and you can use Big-O for that too!
+
+Furthermore, I would argue that it’s more _useful_ to have a bound on the _time_ it takes an algorithm to complete. Who cares how many _instructions_ it takes if some instructions are wildly slower than others? Sure, if your CPU can do other things while waiting for memory (such as sleep, or do some hyper-threading thing) then Big-O analysis for instructions may make sense. But most modern CPU:s just waste time and energy (and thus battery) while waiting for memory, so analysing the Big-O bound for time is very helpful.
+
+In summary: I care about execution time and battery usage, and want to apply Big-O notation to analyze that.
+
+
+
+## "RAM access is *O(1)*, and your caches are only hiding that effect."
+If your problem fit into RAM, but what if it doesn’t? You would need to swap to SSD, which would make it slower. Once you run out of SSD you will need to start to swap to a HDD which will make each access slower still. After that you need to go communicate with the disk server in your basement, and then the local data center in your town, and so on. [My graph in Part I](2014_04_21_myth_of_ram_1.html) stopped at the SSD swapping because I did not have the time to measure it further. My argument in [Part II](2014_04_28_myth_of_ram_2.html) extends to ANY problem size, no matter how small or big.
+
+There’s also [a great response to this on reddit, by arachnivore](http://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/cofodic).
+
+
+## "I only care about stuff that fits in RAM, and I want to ignore cache effects"
+You are welcome to. But, may I then introduce you to this sorting algorithm I’ve constructed? It sorts any data in *O(1)*. How? Simple! It always sorts a billion elements no matter how many elements you really need sorting. So any call always takes a constant amount of time, no matter how big your problem is. As long as it's less than a billion.
+
+I hope my analogy will show you how you cannot apply Big-O to a thus bounded problem.
+
+
+## "You are conflating Big-O with memory hierarchies"
+No, I’m *applying* Big-O to memory hierarchies. Big-O is a tool, and I am applying it to analyze the latency of memory accesses based on the amount of memory you are using.
+
+
+## "The Bekenstein bound is not relevant, as a black hole causes time dilation"
+Good point. To prevent your memory from collapsing into a black hole, you're best off putting the memory on the shell of a hollow sphere. Now time dilation due to gravity does not apply, since the pull of gravity is normal to the surface, i.e. there is no gravity potential difference over the surface of the computer. Of course, if the actual computer is outside or inside this sphere, things get complicated again. Maybe there is a physicist that can help me out here?
+
+
+## "Quantum entanglement transcends the speed of light."
+It sure does, but it cannot be used to send information, so it can't help us.
+
+
+## "The Bekenstein bound is not relevant for distributed computing"
+My claim of _O(√N)_ applies to serial access of memory. If any node in your distributed system is doing serial memory access, it is still useful.
+
+
+## "How was the measurements in Part I done?"
+[The code is on GitHub](https://github.com/emilk/ram_bench/blob/master/list_traversal.cpp).
+
+
+## "Your articles have typos and bad grammar"
+I’m sorry about that, and I’ve tried to clean it up a bit. Still, I’m betting it’s better than if I would have written it all in Swedish and sent it through Google translate (or maybe not...).
+
+
+!!! Note
+    Read the discussion of the Myth of RAM series on [Reddit](https://www.reddit.com/r/programming/comments/2v8dty/the_myth_of_ram_part_i_why_a_random_memory_read/) and [Hacker News](https://news.ycombinator.com/item?id=12383012).
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

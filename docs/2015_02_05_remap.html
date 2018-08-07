@@ -1,0 +1,118 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+
+![What messy code looks like](2015_02_05_remap/spaghetti.jpg)
+
+<head><title>What a difference a function makes</title></head>
+# What a difference a function makes
+<p id="date">February 5, 2015</p>
+
+When you are writing games, UI:s or graphics there is constantly a need to map one range to another. Let me give you a few examples:
+
+* Fade out something starting at time `T0` and ending at time `T1`.
+* Map the distance to a light source to the strength of the light.
+* Take a generated noise value in `[-1,+1]` and map it to a small change in height of the water in a lake.
+* Encode a normal vector as RGB24 (map the range `[-1,+1]` to `[0, 255]`).
+
+So you constantly find yourself writing code like this:
+
+~~~~~~~~~~~~~~~~~ C
+alpha = 1 - saturate((time - start_time) / (end_time - start_time));
+normal_encoded = 255 * (normal + 1) / 2;
+~~~~~~~~~~~~~~~~~
+
+This is tedious, error prone and makes for code that is difficult to read. Still, I wrote the code. For over a decade I wrote the code, never reflecting on why. Then one day last year I saw an artist at Arrowhead trying to do the above using nodes in a shader-graph (a graph-based visual programming language where every single operation is a big box connected to other boxes). Needless to say, it looked like spaghetti with meatballs.
+
+And I was enlightened. What was needed was a simple linear transform, like this:
+
+![*PROGRAMMER ART TRIGGER WARNING*: A horrible visualization of mapping one number line onto another.](2015_02_05_remap/remap.png)
+
+There should be a function for that, so I wrote one. Actually, I wrote two, and this is what they look like in C:
+
+~~~~~~~~~~~~~~~~~ C++
+inline float remap(float x, float in_min, float in_max,
+                   float out_min, float out_max)
+{
+    float t = (x - in_min) / (in_max - in_min);
+    return lerp(out_min, out_max, t);
+}
+
+inline float remap_clamp(float x, float in_min, float in_max,
+                         float out_min, float out_max)
+{
+    float t = (x - in_min) / (in_max - in_min);
+    t = clamp(t, 0, 1);
+    return lerp(out_min, out_max, t);
+}
+~~~~~~~~~~~~~~~~~
+
+I have these for HLSL, GLSL, Lua, C and as a shader node for artists to use. I also have it overloaded for vectors and colors. Let’s look at a few use cases.
+
+~~~~~~~~~~~~~~~~~ C++
+alpha = remap_clamp(time, fade_start, fade_stop, 1, 0);
+normal_encoded = remap(normal, -1, +1, 0, 255);
+normal = remap(normal_encoded, 0, 255, -1, +1);
+brightness = remap_clamp(distance, inner_radius, outer_radius, 1, 0);
+water_height = remap(noise, -1, +1, min_height, max_height);
+~~~~~~~~~~~~~~~~~
+
+It makes writing and reading the code an order of magnitude easier. That’s a great return of investment!
+
+What similar aha-moments have you had? Tell me in the comments or on [/r/programming](http://www.reddit.com/r/programming/comments/2v6fa2/what_a_difference_a_function_makes/)!
+
+
+!!! Note
+    To be clear: I do not claim to have invented anything novel here, I'm just trying to convey the joy of having an aha-moment. There are plenty of [implementations at Rosetta Code](http://rosettacode.org/wiki/Map_range).
+
+## PS
+So what if you want a non-linear transform? No problem, I have another overload for that:
+
+~~~~~~~~~~~~~~~~~ C++
+inline float remap_clamp(float x, float in_min, float in_max,
+                         float out_min, float out_max, float(*ease)(float))
+{
+    float t = (x - in_min) / (in_max - in_min);
+    t = clamp(t, 0, 1);
+    t = ease(t);
+    return lerp(out_min, out_max, t);
+}
+~~~~~~~~~~~~~~~~~
+
+Usage is simple:
+
+~~~~~~~~~~~~~~~~~ C++
+height = remap_clamp(time, time_start, time_stop,
+                     max_height, min_height, bounce_ease_out);
+~~~~~~~~~~~~~~~~~
+
+You can find lots of great easing functions at http://easings.net/.
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

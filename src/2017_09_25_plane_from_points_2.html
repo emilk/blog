@@ -1,0 +1,152 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+<head><title>Fitting a plane to noisy points in 3D</title></head>
+# Fitting a plane to noisy points in 3D
+<p id="date">September 25, 2017</p>
+
+
+In March 2015 I wrote [an article for a simple way to fit a plane to many points in 3D](2015_03_04_plane_from_points.html). This article will introduce an improvement that better handle noisy input.
+
+The original method can be summarized as follows:
+
+1. Calculate the centroid of the points
+2. Calculate the [covariance matrix](https://en.wikipedia.org/wiki/Covariance_matrix) of the points relative to the centroid
+3. Find the main axis (the component of the plane normal which will have the largest absolute value) and do linear regression along that axis
+
+This works well when the points lie in a plane. What if they do not? What if they are noisy?
+
+The most accurate way to fit a plane to noisy points is to modify the last step:
+
+1. Calculate the centroid of the points
+2. Calculate the covariance matrix of the points relative to the centroid
+3. Calculate the smallest [Eigenvector](https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors) of the covariance matrix. This is the plane normal.
+
+If you have a library to calculate the Eigenvectors of a 3x3 matrix, and performance is not important to you, this is what you should do. Just stop reading now!
+
+However, if you care about performance or don't have the patience to implement an Eigenvector solver, keep reading.
+
+To illustrate the problem with the solution in the previous article, I created a small program which generates 50 000 random points on the surface sphere. For each point, I find the closest 32 neighbors to that point and fit a plane to it. I fit a plane to these points and color-code the central point based on the normal of the plane.
+
+Here is the result using the 2015 method:
+
+![](2017_09_25_plane_from_points_2/no_noise_2015.gif)
+
+When I compare the computed normal to the exact one using the Eigenvector solution the mean error is just 0.004°. So when the noise is low, the old method works extremely well.
+
+Let's add some radial noise. First the accurate solution using Eigenvectors:
+
+![](2017_09_25_plane_from_points_2/noise_eigen.gif)
+
+And here is the same data with the 2015 method:
+
+![](2017_09_25_plane_from_points_2/noise_2015.gif)
+
+The average error is now around 16.5° on average – not great! And you can immediately see the problem: the solution is non-smooth when we switch from one main axis to another.
+
+Luckily, a small tweak can give us a much better result. The idea is to measure how well suited each axis is and then do a weighted sum of the normals based on this suitability weight. I did some experimentation, and by weighing the results of each axis by the square of the normal we get this:
+
+![](2017_09_25_plane_from_points_2/noise_2017.gif)
+
+The error is now only 4.8°, less than a third of the old method, and with no visible seams. This improvement holds up even if you change the number of points or the size of the noise.
+
+So the new method is:
+
+1. Calculate the centroid of the points
+2. Calculate the covariance matrix of the points relative to the centroid
+3. Do linear regression along the X, Y and Z axis
+4. Weight he result of the linear regressions based on the square of the determinant
+
+The resulting code is still fast and simple:
+
+
+~~~ Rust
+// Fit a plane to a collection of points.
+// Fast, and accurate to within a few degrees.
+// Returns None if the points do not span a plane.
+fn plane_from_points(points: &[Vec3]) -> Option&lt;Plane&gt; {
+    let n = points.len();
+    if n < 3 {
+        return None;
+    }
+
+    let mut sum = Vec3{x:0.0, y:0.0, z:0.0};
+    for p in points {
+        sum = &sum + &p;
+    }
+    let centroid = &sum * (1.0 / (n as f64));
+
+    // Calculate full 3x3 covariance matrix, excluding symmetries:
+    let mut xx = 0.0; let mut xy = 0.0; let mut xz = 0.0;
+    let mut yy = 0.0; let mut yz = 0.0; let mut zz = 0.0;
+
+    for p in points {
+        let r = p - centroid;
+        xx += r.x * r.x;
+        xy += r.x * r.y;
+        xz += r.x * r.z;
+        yy += r.y * r.y;
+        yz += r.y * r.z;
+        zz += r.z * r.z;
+    }
+
+    xx /= n as f64;
+    xy /= n as f64;
+    xz /= n as f64;
+    yy /= n as f64;
+    yz /= n as f64;
+    zz /= n as f64;
+
+    let mut weighted_dir = Vec3{x: 0.0, y: 0.0, z: 0.0};
+
+    {
+        let det_x = yy*zz - yz*yz;
+        let axis_dir = Vec3{
+            x: det_x,
+            y: xz*yz - xy*zz,
+            z: xy*yz - xz*yy,
+        };
+        let mut weight = det_x * det_x;
+        if weighted_dir.dot(&axis_dir) < 0.0 { weight = -weight; }
+        weighted_dir += &axis_dir * weight;
+    }
+
+    {
+        let det_y = xx*zz - xz*xz;
+        let axis_dir = Vec3{
+            x: xz*yz - xy*zz,
+            y: det_y,
+            z: xy*xz - yz*xx,
+        };
+        let mut weight = det_y * det_y;
+        if weighted_dir.dot(&axis_dir) < 0.0 { weight = -weight; }
+        weighted_dir += &axis_dir * weight;
+    }
+
+    {
+        let det_z = xx*yy - xy*xy;
+        let axis_dir = Vec3{
+            x: xy*yz - xz*yy,
+            y: xy*xz - yz*xx,
+            z: det_z,
+        };
+        let mut weight = det_z * det_z;
+        if weighted_dir.dot(&axis_dir) < 0.0 { weight = -weight; }
+        weighted_dir += &axis_dir * weight;
+    }
+
+    let normal = normalize(&weighted_dir);
+    if normal.is_finite() {
+        Some(plane_from_point_and_normal(centroid, normal))
+    } else {
+        None
+    }
+}
+~~~
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

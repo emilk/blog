@@ -1,0 +1,125 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+
+<head><title>Lessons after a year with Lua</title></head>
+# Lessons after a year with Lua
+<p id="date">December 7, 2014</p>
+
+
+When I started working at Arrowhead Game Studios a little over a year ago, I came from over a decade of using statically typed languages, the main one being C++. At Arrowhead we wrote most of our game code in Lua, which is a small but sweet scripting language. Here’s a few notable differences between C++ and Lua:
+
+**C++**                               | **Lua**
+--------------------------------------|------------------------------------------
+Statically typed                      | Dynamically typed
+Compiled                              | Interpreted / JIT:ed
+Built-in support for classes          | Uses dynamic tables of key-value pairs
+Uses `[0, length)` ranges for arrays  | Uses `[1, length]` ranges for arrays
+Manual memory management + RAII       | Garbage collected
+
+In this article I will summarize the main lessons I've learned, and how scripting languages in general – and Lua in particular – relates to statically typed, compiled languages such as C++.
+
+
+## Hot-reloading is wonderful
+One of the great benefits of a dynamic language is that it can be hot-reloaded, that is, reloaded at runtime. Our entire game code could be reloaded in about a second, and we had Sublime set up to ask the engine to reload the Lua on each save. This gave us really fast iterations which is super-nice when tweaking visuals, game logic, etc. This is a feature that is going to be really hard to ever get into a statically typed, compiled language. Sure you can use things like [edit-and-continue](http://msdn.microsoft.com/en-us/library/bcew296c.aspx) for smaller tweaks (changing values or control logic), but not for for bigger changes, like adding members to classes.
+
+
+## Mistyping is an issue
+I’ve never been a great typer (or speller), and I’ve grown used to relying on code completion to help me type and a compiler to catch my typos. With Lua the code completion can never be as good, and the compiler isn’t there to catch you when your fingers slip.  Some typos aren’t even be caught at runtime, as indexing a table with a non-existing entry yields `nil` in Lua. These sort of typos will rarely cause long-standing issues, but will still slow down productivity (especially if they break the hot-reloading, which happens). To alleviate the issue I created [Sol](https://github.com/emilk/sol), which we ran as a plugin in [Sublime](http://www.sublimetext.com/). Sol will point out most typos with a small white dot to catch them before you ran the code. This helped, but I still miss the benefit of a statically typed language where typos are caught at compilation.
+
+
+## Naming is more important
+In compiled languages the compiler helps you catching mistakes before they become bugs, but in script languages you have to do your own bookkeeping. To help readability, debugging and refactoring it is therefore very important to name things in a helpful manner. For instance, there is no public/private members of tables in Lua, therefore I prefix all private members with an underscore (I do this in C++ too, but in Lua it’s doubly-important).
+
+Lua has no built-in enums, which means I mostly resorted to using strings for enum values. This may sound horribly slow, but thanks to [string interning](https://en.wikipedia.org/wiki/String_interning) in Lua, comparing strings in is just as fast as comparing anything else. However, just having special strings mean special things can be quite confusing, therefore I prefix all enum strings, e.g.:
+
+~~~~~~~~~~~~~~~ Lua
+self._state = “state_paused”
+~~~~~~~~~~~~~~~
+
+
+## Refactoring is harder
+Refactoring is an important part of an evolving code base. When I work in C++, my refactor routine normally consists of with some [regex](https://en.wikipedia.org/wiki/Regular_expression) search-and-replace and/or cut-pasting followed by a few minutes (or hours!) fixing compiler errors. After that I can be feel pretty confident it works. In Lua, the “compiler error” cycle is replaced by run-time debugging, and  I never feel that same confidence that I fixed all the issues.
+
+
+## Reading code is harder
+A coder spends much [more time reading code than writing it](http://blog.codinghorror.com/when-understanding-means-rewriting/). Code readability is therefore really important. The best code is self-documenting, which mean you understand what it does from reading it – no comments necessary. In C++, types are largely self-documenting. Let say you see this method declaration:
+
+~~~~~~~~~~~~~~~ C++
+void kill(Hero& hero) { ... }
+~~~~~~~~~~~~~~~
+
+In a decent editor you can quickly find the definition of the Hero type and at a glance tell what members it has, as well as their types:
+
+~~~~~~~~~~~~~~~ C++
+struct Hero
+{
+    string name;
+    int    hitpoints;
+};
+~~~~~~~~~~~~~~~
+
+In Lua things are much harder:
+
+~~~~~~~~~~~~~~~ Lua
+function kill(hero) ... end
+~~~~~~~~~~~~~~~
+
+What is `hero`? Is it a table, or maybe an identifier (e.g. an array index)? If it’s a table, what are it’s members? You can try to find out who calls the `kill` method (which can be hard with conflicting naming), but the easiest way is generally to break the debugger in the method and inspect the values there. What you really want is one place where the `hero` type is documented – but where would that be? And how to find it?
+
+I simply have no good solution to this issue, except to try to bolt on static typing.
+
+And no, comments are not the solution; in fact I would argue they make things worse. When you change a piece of code (and in games, there is a lot of change), you will produce inconsistencies between the old and then new – those are called *bugs*. We find the bugs in the code and fix them – but there is no tool to find the buggy comments. What you end up with is comments that describe how the system worked a while back, but not how it works *now*. So more often than not, comments lie.
+
+
+## The performance gap is huge
+One of the great things about Lua is [LuaJIT](http://luajit.org/) – one of the fastest VM:s for any language. Still, it does not beat C++. Not in a long shot. Lua is great for quickly trying out a new ideas, so when writing the pathfinding code for [Gauntlet]("https://en.wikipedia.org/wiki/Gauntlet_(2014_video_game)") I started out in Lua. Only when performance started become an issue did I port it to C++. The speedup was about 10x. There are plenty of tasks where the gap is much smaller (io bound things, for instance), but for some things you just can’t beat manual memory management and static typing.
+
+
+## 1-Indexing is not as bad as it sounds
+Lua arrays are indexed from 1. I consider this to be strictly worse than 0-indexing. Mostly my grievance comes when I need to do wrap-around. What in C is `(i % N)` in Lua must become `((i-1)%N + 1)`. That’s just bad, and when you try to flat-index a multidimensional array things only get worse. Still, this isn’t a huge issue, and I never encountered a bug related to this. Still, I must say that I can’t come up with a single good argument for 1-indexing. I suspect that the only reason it is used at all is because of inertia – peopled started numbering things before the zero was invented.
+
+
+## Garbage collection means you have to worry about memory
+Lua is a garbage collected language, which means that each frame we have to spend a few milliseconds running the GC. Modern games are built to run at 60 FPS, which means we only have 16 milliseconds to do everything we need to do in a single frame. Thus it is absolutely essential that the time taken to the GC is minimal, and the way you keep down GC work is to keep down allocations. In Gauntlet we has a global pool of temp-tables with life times less than two frames. We used these for all temporary allocations and messages that were needed during a frame. I’ve never been so worried about allocations as when writing real time code in Lua.
+
+
+## Coroutines are awesome
+Lua has built-in [coroutines](https://en.wikipedia.org/wiki/Coroutine), and that’s awesome, especially for games. When you need to animate something, or keep things running on a script, or do any sequence of events that need to wait for something else to finish, coroutines is the nicest solution to encapsulate the mutable state needed. I wish that C++ had built-in coroutines. For now we’ll have to rely on `boost::coroutine` or [coroutines implemented using threads](2016_03_20_coroutines.html).
+
+
+## Summary
+I really like the quick iterations you can get out of hot-reloading a scripting language, but I still feel that for any reasonably large project, static typing is a great boon for productivity. Could there be a sweet-spot, with a statically typed script language? One that can be interpreted during development, and compiled for performance? Maybe, but it’s not going to be easy. Just consider a language like C but with the extra requirement that you should be able to add and remove a member from all instances of a struct at runtime. If you can deliver that, I’m all ears!
+
+
+!!! Note
+    Discussion on [reddit/r/lua](http://www.reddit.com/r/lua/comments/2sawpt/lessons_after_a_year_with_lua/) and [reddit/r/programming](http://www.reddit.com/r/programming/comments/2si3as/lessons_after_a_year_with_lua_xpost_from_rlua/)
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

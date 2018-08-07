@@ -1,0 +1,65 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+
+<head><title>Introducing Loguru – the user friendly logging library for C++</title></head>
+# Introducing Loguru – the user friendly logging library for C++
+<p id="date">November 7, 2015</p>
+
+
+Earlier today I can across this quote (via [this tweet](https://twitter.com/brokenopcode/status/662925637925998592)):
+
+> "The most effective debugging techniques seem to be those that are designed and built into the program itself – many of today’s best programmers will devote nearly half of their programs to facilitating the debugging process in the other half; the first half, which usually consists of fairly straight forward routines that display relevant information in a readable format, will eventually be thrown away, but the net result is a surprising gain in productivity."
+>     -- Donald E. Knuth – The Art of Computer Programming, Volume 1
+
+One ubiquitous debugging tool is the log file. It is used to find and diagnose problems both during development and in production. At my present employer, [Volumental](http://www.volumental.com/), we have been using Googles logging library [GLOG](https://github.com/google/glog) for this. GLOG writes a log file to disk, but can also be configured to write colored output to stderr. The log looks like this in the terminal:
+
+![GLOG terminal output with `-alsologtostderr` and `-colorlogtostderr`. The produced logfile looks the same, sans the colors.](2015_11_07_loguru/glog.png)
+
+As you can see it prefixes each line with a preamble of useful information. Personally, I find this cryptic and hard to read. Also, many things are missing. Most importantly the current date is not part of the the preamble, nor is the verbosity level. So I went ahead and created something better! Introducing: Loguru! Here's what the output of Loguru looks like:
+
+![Loguru terminal output. Again, the logfile looks the same but without the colors.](2015_11_07_loguru/loguru.png)
+
+Ah, isn't that a breath of fresh air? Note how the message stands out of the preamble, and how the higher verbosity levels (the last column in the preamble) have a slightly muted color. Loguru also features something I have not seen in any other logging library before: *indentation*. The scope above was created with a single line of code: `LOG_SCOPE_F(INFO, "complex_calculation");`. The indentation extends to the end of the current scope and affects all threads. Indentation greatly improves the readability of long log files.
+
+Loguru can do most of what GLOG can do, and can in fact be configured to use the same syntax (`LOG(INFO) << "Msg"`) as GLOG. So if you are using GLOG already, switching to Loguru should be a breeze! But Loguru can also do much, much more. Here's a few things in particular:
+
+* You can hook up a callback in Loguru that is called on each log line. This can for instance be used to show warnings and errors in a debug UI (like an in-game console for you game-devs).
+* The logs contain useful things like the thread name and uptime.
+* The logs contain the verbosity level so you can grep on it after the fact for increased readability. (The verbosity is a single digit number you can supply when logging a line.)
+* You can have more than one log file. One could be called `readable.log` and contain only the most important messages, and one could be called `everything.log` and contain everything.
+* Scoped indentation.
+* [Much, much more](https://github.com/emilk/loguru).
+
+Loguru is a single header file with no third party dependencies. The license is [public domain](https://en.wikipedia.org/wiki/Public_domain). This choice was based entirely on the excellent [stb libraries](https://github.com/nothings/stb) by [Sean Barrett](https://twitter.com/nothings).
+
+So, give Loguru and try and report any bugs, issues and feature requests back to me! You can find it on GitHub at [https://github.com/emilk/loguru](https://github.com/emilk/loguru).
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

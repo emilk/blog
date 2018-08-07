@@ -1,0 +1,160 @@
+<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<!-- Copyright Emil Ernerfeldt -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+</div>
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+
+
+<head><title>Stick to UTF-8 and these three character sets</title></head>
+# Stick to UTF-8 and these three character sets
+<p id="date">October 12, 2016</p>
+
+
+## Intro
+Handling text is an important part of every programmers life, and there are many subtleties to it. Lately I have started to realize that all text I handle in my everyday work falls into three categories:
+
+* **Free text**: this includes names of people and places, contents of chat messages, books, etc.
+* **Code**: this includes C++, JSON, HTML, etc – anything that is both human and machine readable and writable.
+* **Identifiers**: these are unique names, e.g. instance keys in JSON, file names, database keys and resource names.
+
+I think we as programmers can make our lives much simpler if we decide to stick to these three categories, and to all agree on their character sets and encodings.
+
+
+## The encoding
+Let's first settle the *encoding*. The encoding is how we translate a character into a number. Ths part is simple: always encode everything as [UTF-8](https://en.wikipedia.org/wiki/UTF-8). UTF-8 is a variable-length encoding, meaning each character can be encoded by between one and four bytes. This may seem complicated but for almost all cases this complication is something you should never need to care about. I won't argue at length for UTF-8 here – just go ahead and read the [UTF-8 Everywhere Manifesto](http://utf8everywhere.org/) instead.
+
+UTF-8 is winning the encoding wars, and for good reasons. So let's just use it everywhere already, okay?
+
+
+## The three character sets
+Even if we encode all our text as UTF-8 we still have to pick our character set – which set of characters we should allow in a given situation. Let's go through the three categories one by one:
+
+### Free text – All of Unicode
+* **Users:** End users, copywriters, UI designers, translators, ...
+* **Characters:** All of them.
+
+The first, and broadest one, is also the simplest. Whenever you have a place where your user can enter their name, or write some notes, or write a chat message, *you should allow all of [Unicode](https://en.wikipedia.org/wiki/Unicode)*.
+
+* Don't try to restrict it to English even if all your customers are Australian. You will very soon run into somebody with an *å*, *ç* or *ב* in their name, and then you either have to rewrite a lot of things, or force people to transliterate their names to Latin characters (which is a very rude thing to ask of someone). Just allow all the characters, and you will save yourself a lot of headache later on.
+
+* Don't try to forbid subranges (like emoticons or musical notes). Sure, no name I know of has an emoticon in it – yet. But who knows what the future holds? And if you're worried about users typing in rubbish: rest assured that they can and will do so – no matter what you do.
+
+* Don't try to forbid "dangerous" characters, like `'`, `"`, `\` etc. You should not need to forbid these if you are handling the text correctly in your code (e.g. escaping before putting in an SQL query). Forbidding these characters is [defensive programming](https://en.wikipedia.org/wiki/Defensive_programming) at its worst, and will only make it harder to test whether or not you are properly escaping your strings in the *correct* place ([mandatory XKCD](https://xkcd.com/327/)).
+
+* Don't "massage" the text by, for instance, trying to turn upper-case to lower-case. You will only mess things up. Just pass the text on exactly as the user entered it.
+
+### Code – ASCII
+* **Users:** Programmers, scripters, machines
+* **Characters:** `!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_``abcdefghijklmnopqrstuvwxyz{|}` plus space, line feed (`\n`) and horizontal tab (`\t`).
+
+I define *code* as any piece of text that is meant to be easily readable and writable by a computer as well as a human. Examples include programming languages (C++, Python, JavaScript, …) but also data formats like JSON, and even standard formats like the [ISO 8601 data/time format](https://en.wikipedia.org/wiki/ISO_8601), [Social Security numbers](https://en.wikipedia.org/wiki/Social_Security_number) and [IP addresses](https://en.wikipedia.org/wiki/IP_address).
+
+English is the [lingua franca](https://en.wikipedia.org/wiki/Lingua_franca) of the programming world, and we should count ourselves very lucky that we have a common language that we all use. Please don't ever write code in anything but English. You will severely – and unnecessarily – limit your hiring choices in the future if you do. Sticking to English gives us as a profession the supreme benefit of being able to share code easily – but that's just one benefit. Another benefit is that it allows us to limit ourselves to the first 128 symbols of Unicode – [ASCII](https://en.wikipedia.org/wiki/ASCII).
+
+To be precise: ASCII is a character encoding, but here I will use the term to refer to the character set consisting of the [printable ASCII characters (`0x20-0x7E`)](https://en.wikipedia.org/wiki/ASCII#Printable_characters), plus the line feed (`\n`) and tab (`\t`) characters.
+
+For any sort of code, I would urge you to stick to ASCII.
+
+The benefits of this are numerous:
+
+* ASCII allows us to encode each character in just one byte. This in turn makes writing tools that parse or produce code *much simpler*. Why is this important? Writing parsers or code generators is a pretty common task, and we want to make it easy to do so. Parsing one byte at the time is much simpler (and faster) than handling multiple bytes at once.
+
+* ASCII encourages people to code in English.
+
+* ASCII means you are very likely to be able to type the characters on any keyboard in the world. Image you create a programming language where the concept of infinity is expressed with the symbol `∞` (not in ASCII). How would you user type that? Chances are they will start copy-pasting that symbol whenever they need it, which is just a slow way to work. Better instead to bite the bullet and use something more verbose, but also more typeable, like `INFINITY`.
+
+* ASCII is a strict subset of UTF-8, so you are still following our encoding rule.
+
+What about string literals embedded in our code? For instance, let's say you want to print out an angle in C: `printf("45°")` – the degree symbol `°` is not in ASCII. I would argue that the contents of a string literal is not part of the code, and is thus not covered by its character restriction. In other words, allow the full range of Unicode (encoded as UTF-8) in the string literals. This is still easy to parse (in the case of C, just reading to the next byte `"` that isn't prefixed with a backslash). But in the actual code, please stick to ASCII.
+
+I know some programming languages allow you to have non-ASCII identifiers, but I believe this is a mistake. It only encourages people to write code in non-English (again: don't) and it opens up for stupid problems, like mixing up `i`, `ì`, `í` and `ï`.
+
+So in short: encode your code as UTF-8, but only allow non-ASCII characters within string literals.
+
+### Identifiers – lower-case characters, numbers and underscores.
+* **Users:** Programmers, scripters, data-collectors, machines
+* **Characters:** `0123456789_abcdefghijklmnopqrstuvwxyz`
+
+This is the last and most restrictive category. To illustrate this and all other categories together, let's take an hypothetical format for describing a chat message in a fictional multiplayer game. The JSON contains not only the message, but also who sent it, when, from where, and to whom:
+
+~~~~ json
+{
+    "text":            "In your face, sucker! やった!",
+    "time":            "2016-10-10T17:55:08Z",
+    "player_uuid":     "62b3fbb0-232f-4c71-8b86-84321e5b4c2d",
+    "player_position": "room_grand_hall",
+    "recipient":       "recipient_last_fragged_opponent"
+}
+~~~~
+
+Here the contents of the `"text"` field is the actual content of the chat message, and so it can contain any Unicode character. The `"time"` ([ISO_8601](https://en.wikipedia.org/wiki/ISO_8601)) and `"player_uuid"` ([UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier)) field I considered computer code (human and computer readable/writable) and can therefor consist of any ASCII. It is the remaining fields and all the keys that fall under the third character set, which I will refer to simply as *identifiers*. They consist of strings which must be matched exactly by whoever reads it.
+
+Other uses for such identifiers are as database keys or table names, resource names, and file names.
+
+For identifiers I urge you to use `snake_case`. This means only lower-case letters (a-z), numbers and underscore (that's `[a-z0-9_]+` in [regex](https://en.wikipedia.org/wiki/Regular_expression)). Nothing else.
+
+The problem am I trying to solve with this restriction is code like this, variants of which is [all too common](https://searchcode.com/?q=lower+strip) [in the wild](https://searchcode.com/?q=trim+toLowerCase):
+
+~~~~ C
+if message.strip().lower().replace(' ', '_') == "hello_world":
+~~~~
+
+Or even worse:
+
+~~~~ C
+if message == "Hello World" or
+   message == "hello world" or
+   message == "hello_world":
+~~~~
+
+By only allowing our `snake_case` format at the point of entry this can safely be written as the much cleaner:
+
+~~~~ C
+if message == "hello_world":
+~~~~
+
+There is obviously a need to enforce this rule where the data is entered. If you are to pick for a few set of values in a GUI, use a drop-down list or a combo box. If you are going to enter a new value, reject anything that doesn't match the regex `[a-z0-9_]+`.
+
+There are many other benefits of this reduced character set:
+* All popular programming languages will allow you to use the identifier as the name of a variable. This will make code more readable, e.g. you can have `player_uuid` or `room_grand_hall` in your C++, Lua, Python or JavaScript all day long, and it will match the keys you use in your JSON. This makes it easy to find all uses of the identifier in you project, be it in a `.json` or in a `.cpp` file. It also lets us to easily write code to (de)serialize data.
+* You can use the identifiers as a file name without any risk for pain. The [POSIX specification](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_276) does allow us (in addition to `[a-z0-9_]`) upper-case letters as well as dot and dash (`.` and `-`) but mixing cases is a bad idea for portability (`"FOO.PNG"` and `"foo.png"` are different files on Linux, but the same on Mac). The dot should, I believe, be reserved for separating file name from extension (e.g. `filename.json`).
+
+The problem with file names is not the only reason to exclude upper-case letters. I've seen people staring at things like "RoI" and "Rol" trying to spot the difference. Excluding all upper-case letters saves us a lot of effort.
+
+What about spaces? Trailing spaces is the bane of trying to figure out why two string's don't match. Also, if you allow spaces you will very soon have confusion of whether to use a space or an underscore to separate words.
+
+Identifiers should be considered atomic. They should not be parsed and broken up into smaller tokens, but treated as a whole (if not, it would be code rather than an identifier).
+
+
+## Summary
+* Encode all text as UTF-8 everywhere.
+* When you have a special key that you must match exactly, `use_snake_case`.
+* When writing a data format or programming language: stick to ASCII
+* Everywhere else: allow *anything*.
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>

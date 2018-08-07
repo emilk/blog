@@ -1,0 +1,90 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+(insert header.html here)
+
+
+<head><title>The fastest code is the code that never runs</title></head>
+# The fastest code is the code that never runs
+<p id="date">December 6, 2015</p>
+
+
+## Preface
+
+When performance is a feature, slowness is a bug. Finding the source of slowness is like tracking down any bug, but once you have found the slow code there is generally three approaches to making the code faster:
+
+* **Make the inner loop run faster.** This includes things like cache tuning, branch reduction and [SIMD](https://en.wikipedia.org/wiki/SIMD) optimizations.
+* **Make the inner loop run on more processors.** Parallelize over many processor cores and/or many machines.
+* **Make the inner loop run fewer times**. This category ranges from early-out tests to algorithmic overhaul to improve the computational complexity (the [big-O](https://en.wikipedia.org/wiki/Big_O_notation)).
+
+This story is about a case where the inner loop was already highly optimized and ran in parallel but a series of serious design flaws made it run far more times than necessary.
+
+
+## Background
+
+It was early 2014, and I was working at [Arrowhead Game Studios](http://arrowheadgamestudios.com/) on [our reboot]("https://en.wikipedia.org/wiki/Gauntlet_(2014_video_game)") of the classic arcade game [Gauntlet]("https://en.wikipedia.org/wiki/Gauntlet_(1985_video_game)")). It was the week before we were going to present our game to the world for the very first time. We were going to let the public play a select level from the game, and over the last weeks the team had been busy fixing bugs, refining gameplay and tuning the visuals. It was looking good, but during the last week something happened: the [frame rate](https://en.wikipedia.org/wiki/Frame_rate) dropped from the desired 60 FPS to a crawling 20-25 FPS. Panic! What had gone wrong? And did we have time to fix it?
+
+![](2015_12_06_gauntlet/gauntlet.jpg)
+
+
+## Investigation
+
+Immediately our suspicions turned towards the lighting. A lot of omnidirectional shadow casting lights had been added lately, and shadows are never cheap.
+
+Gauntlet was developed using the third-party [BitSquid](https://en.wikipedia.org/wiki/Bitsquid) engine (since rebranded [_StingRay_](http://stingrayengine.com/)). We were using a deferred shading pipeline with [shadow maps](https://en.wikipedia.org/wiki/Shadow_mapping). Describing in detail how shadow maps work is outside of the scope of this blog post, but here's a brief overview how omnidirectional shadow mapping is done in BitSquid:
+
+Each omnidirectional light is simulated as six spotlights going along the positive and negative x,y,z axes. For each such "virtual spotlight" the engine renders nearby geometries to a _shadow map_, which is an offscreen buffer containing the distance from the light to the closest geometry. These shadow maps are later used for determining whether or not each pixel in the scene is obscured from the shadow casting light.
+
+Turning off shadows on all the lights did indeed bring the frame rate right back up to 60 FPS, but it also destroyed the mood of the game. Two days before the deadline I decided to track down the source of the problem.
+
+I started off by experimenting with the shadow map settings. In particular, I turned down the resolution of them substantially, from 1024² to 16². This did nothing for the frame rate. This told me that something was very wrong. After enhancing the in-game profiler a bit I discovered the culprit: culling of shadow casters.
+
+
+## The problem
+
+When drawing to the shadow maps one cannot simply send all geometries in the entire level to the renderer, as that would make the rendering of the shadow maps way too slow. Instead the renderer first [culls](https://en.wikipedia.org/wiki/Hidden_surface_determination#Culling_and_Visible_Surface_Determination) away geometries too far away. It was this culling that was taking to long. In fact, it took a whopping 25 ms! For a stable 60 FPS the per-frame budget is 16 ms. That's 16 ms to do everything – game logic, physics simulation, shadow rendering, scene rendering, scene lighting, post-processing, etc. 16 ms for everything – and now this one part was taking 25 on its own. Ouch!
+
+I discovered this on Wednesday. On Friday we were shipping the final version to be shown. On Thursday morning standup I made a bold promise: by the end of they day I would have doubled the frame-rate. I then went to work.
+
+Thankfully we had a source code license of BitSquid and I was used to making enhancements and bug fixes to the engine. Reading the code it turned out BitSquid naïvely sent _all geometries_ in the entire level to culling, once for every shadow casting spot-light and _six times_ for omnidirectional lights. Furthermore, the culling was done via an expensive OBB (Oriented Bounding Box) vs [frustum](https://en.wikipedia.org/wiki/Viewing_frustum) test. This means that with _N_ geometries in the level and _L_ omnidirectional lights there was _N·L·6_ OBB-frustum tests. And it was these tests that was taking 25 ms. Obviously someone at BitSquid had already realized this part of the code could become a bottleneck as the OBB-frustum tests were SIMD-optimized and parallelized over several working threads. This meant that I could not make the code run faster or on more processors, so I had to go with the only remaining alternative: run the code fewer times.
+
+
+## Solutions
+
+I only had one day to improve the performance, and so the approaches I settled on all made minimal changes to the engine (which I was only somewhat familiar with).
+
+### Early-out
+
+All geometries in BitSquid had a pre-calculated OBB, but OBB tests are always slow. I decided to add a much cruder but faster bounding primitive to every geometry and light: a sphere. Testing two spheres against each other is dirt cheap and saves us from the expensive OBB tests in the majority of cases, saving a lot of time. However, I did not have the time to modify the engine and all the tools to add a pre-calculated minimum bounding sphere to every geometry. Instead I decided to compute bounding spheres on the fly from the OBB:s. The radius of the minimum bounding sphere around a box with sides _W,H,D_ is _√((W/2)² + (H/2)² + (D/2)²)_, but that square root is quite expensive. I instead decided to make the bounding sphere slightly larger by calculating the radius as _√3/2 · max(W, H, D)_ (where _√3/2_ can of course be calculated once and reused).
+
+I also calculated bounding spheres around all lights. For omnidirectional lights this is of course trivial, but for spotlights it was slightly more involved but again I came up with a fast approximation, the details of which escapes my memory.
+
+![](2015_12_06_gauntlet/keanu.gif)
+
+### Pre-calculate a set of potential shadow casters
+
+Sending distant geometries to culling is a waste of time. Most game engines stores the levels in some sort of hierarchy (like a [BSP](https://en.wikipedia.org/wiki/Binary_space_partitioning)) that allows the engine to quickly cull distance objects in large chunks. BitSquid had nothing like this and I did not have time to add any such structure in just a day. Instead I added an extra step at the start of the frame where I made a bounding box around all shadow casting lights that intersected the camera. This formed a bounding box containing everything that could potentially cast a light into our view frustum. I then pre-culled everything in the scene with this bounding box to select a set of potential shadow casters. This meant that later on when doing light culling we would only have to test the geometries in this set instead of every geometry in the entire level.
+
+
+![How the bounding box around potential shadow casters was calculated.](2015_12_06_gauntlet/culling.gif)
+
+### Treat an omnidirectional light as a whole
+
+As I stated earlier, BitSquid treated each omnidirectional light as a six spotlights and did culling for each spotlight individually. I added a pre-pass where I culled a bounding sphere of each omnilight with the bounding spheres of the potential shadow casters to select only the geometries close to the omnilight. Only after passing this crude tests did I forward the geometries to be tested against the six virtual spotlights using the original OBB-frustum intersecting code.
+
+## Results!
+
+After all these steps had been added to the engine I had managed to get down the time spent on shadow culling from 25 ms to around 2 ms, and our FPS landed on a smooth 60 FPS. Mission accomplished! The next day we shipped the preview.
+
+## Lessons
+
+* Having the source code for whatever middleware you're working with is absolutely _essential_. Not only does it help you finding out what the problems are, it often allows you to fix them.
+* If you're tasked with speeding up some code, first take a step back and think about how you can avoid the code from being run at all!
+
+
+!!! Note
+    Read the reddit discussion at [r/programming](https://www.reddit.com/r/programming/comments/3vnvna/the_fastest_code_is_the_code_that_never_runs/) and [r/gamedev](https://www.reddit.com/r/gamedev/comments/4u7rka/optimization_in_the_remake_of_gauntlet_the/).
+
+
+(insert footer.html here)
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
