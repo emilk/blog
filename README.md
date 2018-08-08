@@ -16,12 +16,12 @@ A work-in-progress port of Emil Ernerfeldt's blog at www.ilikebigbits.com to Mar
 * [x] Add redirects for old links
 * [x] Add a footer to each site
 * [x] Add a ornate separator between header and article
-* [ ] Fix how the page looks on Firefox
-* [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
-* [ ] Ensure redirects works live
-* [ ] Ensure it reads well on a phone
-* [ ] Add Google tracking
+* [x] Fix how the page looks on Firefox
+* [x] Ensure redirects works live
+* [x] Add Google Analytics
 * [x] Push to Github Pages
+* [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
+* [ ] Ensure it reads well on a phone
 * [ ] Test, test, test
 * [ ] Redirect www.ilikebigbits.com
-* [ ] Close old account
+* [ ] Close old Squarespace account
