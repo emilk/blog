@@ -163,7 +163,9 @@ else if ( !Q_stricmp( token, "back" )
 }
 else
 {
-  ri.Printf( PRINT_WARNING, "WARNING: invalid cull parm '%s' in shader '%s'\n", token, shader.name );
+  ri.Printf( PRINT_WARNING,
+    "WARNING: invalid cull parm '%s' in shader '%s'\n",
+    token, shader.name );
 }
 ~~~
 
