@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+This scripts copies filed from one folder ("src") to another ("docs").
+All html files are processed so that:
+
+	* Any equations written using Markdeep syntax gets prerendered as SVG.
+	* All "<!-- insert SOME_FILE here -->" are replaced with the content of SOME_FILE (non-recursively).
+"""
 from multiprocessing.dummy import Pool
 from pathlib import Path
 import re
@@ -72,8 +79,7 @@ def convert_file(in_filepath: Path, out_filepath: Path, initial_pass: bool):
 	text = re.sub(r"<!-- insert (.*) here -->", replace_insertion, text)
 
 	text = render_math(text, initial_pass)
-	text = "<!-- Copyright Emil Ernerfeldt -->\n" + text
-	text = "<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->\n" + text
+	text = "<!-- PRERENDERED DOCUMENT - DO NOT EDIT!!!! -->\n" + text
 
 	if initial_pass:
 		print("STARTED {} => {}".format(in_filepath, out_filepath))
