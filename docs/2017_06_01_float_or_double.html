@@ -1,8 +1,10 @@
-<!-- RENDERED DOCUMENT - DO NOT EDIT!!!! -->
-<!-- Copyright Emil Ernerfeldt -->
+<!-- PRERENDERED DOCUMENT - DO NOT EDIT!!!! -->
 <meta charset="utf-8">
 <link rel="stylesheet" href="style.css">
 <head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<!-- Copyright Emil Ernerfeldt -->
+<!-- The unmangled source of this document can be found at https://github.com/emilk/blog -->
+
 <head>
 	<!-- Global site tag (gtag.js) - Google Analytics -->
 	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-123571380-1"></script>
@@ -26,6 +28,10 @@
 	<a href="about.html">About</a>
 
 	<hr width=300/>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
 </div>
 
 
@@ -67,7 +73,7 @@ If you have plenty of RAM and neither execution speed nor battery drainage is an
 If you are memory constrained, then the reason to use `float` over `double` might be as simple as "it takes half as much space". But even if memory is not an issue, storing your data with `float` may be substantially faster. As I said, `double` takes twice the space over `float`, so that means it will take twice as long to allocate, initialize and copy your data if you use `double`. Moreover, if you are reading your data in an unpredictable fashion (random access) you will get increased cache misses with `double`, which will make it around 40% slower (based on the [O(√N) rule of thumb](2014_04_21_myth_of_ram_1.html) and confirmed with benchmarks).
 
 
-## Perfomance impact of calculating using `float` vs `double`
+## Performance impact of calculating using `float` vs `double`
 If you have a well-trimmed pipeline using SIMD, you will be able to do twice the number of FLOPS with `float` vs `double`. If not, the difference might be much smaller, but it is very dependent on your CPU. On Intel Haswell the difference between `float` and `double` is small, but on ARM Cortex-A9 the difference is big. A comprehensive benchmark can be found [here](http://nicolas.limare.net/pro/notes/2014/12/12_arit_speed/).
 
 Of course, if you store your data with `double` it makes little sense to do computation on them using `float`. After all, why store a lot of precision if you are not going to use it? The opposite is, however, not true: it can make a lot of sense to store your data with `float` but perform some or all computation on them with `double`.
@@ -431,7 +437,7 @@ Notice how we shift out some of the significant decimals to make the points alig
 
 
 <div class="footer">
-	<font size="1">Copyright Emil Ernerfeldt</font>
+	<font size="1">Copyright Emil Ernerfeldt. Report typos, errors, problems etc at https://github.com/emilk/blog/issues</font>
 </div>
 
 <!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
