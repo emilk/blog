@@ -1,27 +1,23 @@
 # I Like Big Bits
-A work-in-progress port of Emil Ernerfeldt's blog at www.ilikebigbits.com to Markdeep + github pages.
+The source for my static www.ilikebigbits.com blog. Written in [Markdeep](https://casual-effects.com/markdeep/), prerendered with a small script, hosted on [GitHub Pages](https://pages.github.com/).
 
+You can use [Issues](https://github.com/emilk/blog/issues) to point out typos, errors, or just discuss the contents of the blog.
 
 # TODO:
-* [x] Make `code` stand out a bit more in the style template, e.g. in 2014_05_06_type_safe_handles.md.html
-* [x] Proofread all the articles: (done up to and including 2015_12_06_gauntlet.md.html)
-* [x] Add article <titles>
-* [x] Add links to reddit discussions for each article.
 * [x] Make sure every article has been translated
-* [x] Rename .md.html to just .html for future-proofing
-* [x] Write a small digest in blog.html
-* [x] Rename blog.html to index.html
-* [x] Insert header.html using a script when generating the site.
+* [x] Proofread all the articles
+* [x] Insert header.html/footer.html using a script when generating the site.
 * [x] Add an about-section about the website
 * [x] Add redirects for old links
 * [x] Add a footer to each site
-* [x] Add a ornate separator between header and article
+* [x] Add a separator between header and article
 * [x] Fix how the page looks on Firefox
 * [x] Ensure redirects works live
 * [x] Add Google Analytics
 * [x] Push to Github Pages
+* [x] Redirect www.ilikebigbits.com
 * [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
+* [ ] Report the bugs in bugs.html
 * [ ] Ensure it reads well on a phone
+* [ ] Adjust style.css
 * [ ] Test, test, test
-* [ ] Redirect www.ilikebigbits.com
-* [ ] Close old Squarespace account
