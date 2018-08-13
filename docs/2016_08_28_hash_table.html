@@ -103,7 +103,7 @@ So, this the all the above translate to actually wins? To test it, I [wrote a be
 
 * One million random 64 bit numbers (e.g. `2947667278772165694`).
 * The above numbers, but encoded decimally as `std::string`s (e.g. `"2947667278772165694"`). This is to emulate realistic real-world data with high entropy.
-* The above string with a hundred extra `x`:s appended (e.g. `"2947667278772165694xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"`). This is to make the cost of hashing the string a bit more costly.
+* The above string with a hundred extra `x`:s appended (e.g. `"2947667278772165694xxxxxxxx…"`). This is to make the cost of hashing the string a bit more costly.
 
 I run each benchmark ten times and take the best time. The compiler is Clang and the platform is OSX.
 
