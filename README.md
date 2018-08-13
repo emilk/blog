@@ -18,6 +18,7 @@ You can use [Issues](https://github.com/emilk/blog/issues) to point out typos, e
 * [x] Redirect www.ilikebigbits.com
 * [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
 * [ ] Report the bugs in bugs.html
+* [ ] Prerender Markdown
 * [ ] Ensure it reads well on a phone
 * [ ] Adjust style.css
 * [ ] Test, test, test
