@@ -10,15 +10,12 @@ You can use [Issues](https://github.com/emilk/blog/issues) to point out typos, e
 * [x] Add an about-section about the website
 * [x] Add redirects for old links
 * [x] Add a footer to each site
-* [x] Add a separator between header and article
-* [x] Fix how the page looks on Firefox
-* [x] Ensure redirects works live
 * [x] Add Google Analytics
 * [x] Push to Github Pages
 * [x] Redirect www.ilikebigbits.com
 * [ ] Fix image and text alignment on top of 2015_02_09_myth_of_ram_4.html
-* [ ] Report the bugs in bugs.html
-* [ ] Prerender Markdown
+* [ ] Report the Markdeep bugs in bugs.html
+* [ ] Prerender Markdown, maybe with https://github.com/breakin/markdeep-offline
 * [ ] Ensure it reads well on a phone
 * [ ] Adjust style.css
 * [ ] Test, test, test
