@@ -1,0 +1,120 @@
+<!-- PRERENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<head><link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet"></head>
+<!-- Copyright Emil Ernerfeldt -->
+<!-- The unmangled source of this document can be found at https://github.com/emilk/blog -->
+
+<head>
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-123571380-1"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+		gtag('config', 'UA-123571380-1');
+	</script>
+</head>
+
+<div id="header">
+	<p id="site-title">I Like Big Bits</p>
+	<p id="site-subtitle">THOUGHTS ON CODE</p>
+
+	<a href="index.html">Blog</a>
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	&nbsp;
+	<a href="about.html">About</a>
+
+	<hr width=300/>
+	<br>
+	<br>
+</div>
+
+
+
+<head><title>Estimating the risk of a hash collision</title></head>
+# Estimating the risk of a hash collision
+<p id="date">October 20, 2018</p>
+
+
+## Preface
+Say you store 32-bit hashes of a thousand items – what is the probability that you will have a collision? Can you name a number off the top of you head? After reading this article you will be able to!
+
+
+## Introduction
+A ubiquitous part of computing science is hashing, i.e. taking some value and mapping it to a smallish integer. It is useful for lookups (hash tables), cryptography, message authentication, identification, etc. Whatever the usage you should be aware of the risk of hash collisions, which is when two different values get hashed to the same integer. In some cases hash collisions are benign, but they can sometimes lead to slowdowns, bugs, denial-of-service attacks, spoofing and worse. So avoiding hash collisions is certainly a high priority. To make sure you avoid them you should start by knowing the risk of one happening.
+
+So: given a good hash function and a set of values, what is the probability of there being a collision? What is the chance you will have a hash collision if you use 32 bit hashes for a thousand items? And how many items could you have if you switched to a 64-bit hash without the risk of collisions going above one-in-a-million?
+
+It can be very hard to get an intuitive grasp on probabilities like these. Luckily, some simple math comes to the rescue!
+
+
+## Deriving it
+Let $H$ be the size of the hash space, i.e. the number of different hash values (e.g. a $32$ bit hash would have $H = 2^{32} ≈ 4.3$ million). Let $n$ be the number of things you have hashed. What is the probability $p$ of at least one hash collision?
+
+First let's calculate how many *possibilities* of collisions there are. Consider if we add one more hash to our set. It can collide with all the $n$ existing hashes. Add another, and it call collide with all of the $n+1$ hashes, and so on. So the number of potential collisions is the number of *pairs* we can form, which is $\frac{n(n - 1)}{2}$. So this is the number of possibilities for collisions. The probability of any one of these pairs to actually collide is $\frac{1}{H}$, because there are $H$ possible hash values, and so the risk that two random ones are the same is $\frac{1}{H}$.
+
+So for there to be no collision, we need $\frac{n(n - 1)}{2}$ potential collisions hit the $\frac{H-1}{H}$ probability that the pair does not collide. So:
+
+\begin{equation}
+p = 1 - {(\frac{H-1}{H})}^{\frac{n(n - 1)}{2}}
+\end{equation}
+
+This equation is not exactly ripe for mental calculation. Even typing in to a calculator is hard work! So let's simplify it with some approximations:
+
+## Simplifying it
+The first simplification we can do to this is using the observation that $1-(1-P)^N ≈ PN$ if $PN ≪ 1$ (see the appendix below for an explanation of this). This lets us switch out the exponentiation for multiplication. Great!
+
+The second simplification is that $\frac{n(n - 1)}{2} ≈ \frac{n^2}{2}$ when $n$ is large (simply because $n - 1 ≈ n$ for large $n$. Oh, how I love approximations!).
+
+So, the risk of a single pair of hashes to collide is $\frac{1}{H}$, and the number of chances for collisions for $n$ hashes is approximately $\frac{n^2}{2}$, so the total probability of a hash collisions in *any* pair is approximately:
+
+\begin{equation}
+p ≈ \frac{n^2}{2H}
+\end{equation}
+
+Or if you want to figure out how big hash space you need given some number of hashes and the maximum probability of a collision you can abide:
+
+\begin{equation}
+H ≈ \frac{n^2}{2p}
+\end{equation}
+
+Or if you want to find out the maximum number of hashes you can have while keeping the chance of collision below $p$:
+
+\begin{equation}
+n ≈ \sqrt{2Hp}
+\end{equation}.
+
+## An example
+Given a 32-bit hash, how many hashes could you store without the chance of a collision going above one-in-a-million? We have $H=2^{32}$ and $p=10^{-6}$ so plugging it into the equation above we get $n ≈ \sqrt{2 \times 2^{32} \times 10^{-6}} ≈ 92.7$.
+
+However, you can even calculate this in you head! $p≈2^{-20}$ (since $2^{10} ≈ 1000$) so $n ≈ \sqrt{2 \times 2^{32} \times 2^{-20}} = \sqrt{2^{1+32-20}} = \sqrt{2^{13}} = 2^{6.5} = 2^6 \times \sqrt{2} ≈ 64 \times 1.4 ≈ 90$.
+
+The true value using the exact mathematics is 93.2, but with a simple mental calculation we can get close enough to see if need a bigger hash space to be safe from collisions.
+
+
+## Note
+I added these approximations  to the Wikipedia articles on [Birthday problem](https://en.wikipedia.org/wiki/Birthday_problem) and [Birthday attack](https://en.wikipedia.org/wiki/Birthday_attack) on 5 May 2013‎ ([edit](https://en.wikipedia.org/w/index.php?title=Birthday_attack&diff=prev&oldid=553623720)) but without any derivation for why they work. Well, I finally got around to writing it down =)
+
+
+## Appendix: Approximating stacked probabilities
+Say you buy a lottery ticket with a very small chance of winning the big prize. Your friend buys ten lottery tickets. Does he have ten times the chance of winning as you do? Yes, but only *approximately*.
+
+To understand why, consider you flip a coin betting on heads. Your friend flips two coins betting on either one being a head. Your chance is $0.5$ but your friends chance is not twice that, because it is not a certainty that he will hit heads. The correct approach is of course to calculate the chance that *neither* coin-flip is a head ($0.5 \times 0.5 = 0.25$) and from that calculate the chance that either coin-flip was a head ($1-0.25=0.75$). That's what I did for deriving the first probability formula (the complicated one).
+
+The naive instinct to add probabilities (two lottery tickets = twice the chance) is wrong, but it gets less wrong the smaller the probabilities are! You are *almost* twice as likely to get at least one six when throwing two dice than when throwing one (the chance for one dice is $\frac{1}{6}$, the chance for two is about $\frac{1}{3.27}$). The chance for a 20 on a D20 roll is $\frac{1}{20}$, the chance for at least one 20 on two D20 rolls is $\frac{1}{10.26}$.
+
+So the rule is: the chance of something happening increases *approximately* linearly with the number of times you try that thing, *if* the chance of the occurrence is small.
+
+In math terms: if you have a probability for one event being $P$, the probability it will happen at least once in $N$ tries is $1-(1-P)^N$  but that is very close to $PN$ if $PN ≪ 1$. So for instance, with $P=0.001$ (one in a thousand chance of winning the lottery) and $H=10$ (ten lottery tickets), gives us the numbers $0.00995$ with the accurate calculation and  $0.01$ for the approximation.
+
+
+<div class="footer">
+	<font size="1">Copyright Emil Ernerfeldt. Report typos, errors, problems etc at https://github.com/emilk/blog/issues</font>
+</div>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
