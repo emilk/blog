@@ -1,0 +1,273 @@
+<!-- PRERENDERED DOCUMENT - DO NOT EDIT!!!! -->
+<meta charset="utf-8" lang="en"><style class="fallback">body{visibility:hidden;}</style>
+
+# Data driven programming
+
+Concepts:
+* Data first
+* Separate the data from the code
+* Try to stick to Plain old Data (PoD)
+* Immutable data
+* Functional code
+* Immediate mode
+* Clear ownership
+
+What you het:
+* Less bugs
+* Less complexity
+* More readable code (once you are used to it...)
+* Speed
+* Easier serialization
+
+
+# OOP example
+
+``` C++
+class Entity
+{
+public:
+	virtual void update(World* world, float dt);
+	virtual void paint(Gfx* gfx) const;
+};
+
+class Hero : public Entity
+{
+private:
+	Vec2         _pos       = {};
+	Vec2         _vel       = {};
+	int          _num_kills =   0;
+	int          _hp        = 100;
+	Mesh*        _mesh;
+	InputDevice* _input;
+
+public:
+	Hero(const GfxResources& gfx_resources, InputDevice* input)
+		: _input(input)
+	{
+		_mesh = gfx_resources.get("hero");
+	}
+
+	void update(World* world, float dt) override
+	{
+		if (g_keyboard[BRAKE_BTN]) { _vel *= 0.5; }
+		_pos += dt * _vel;
+		if (g_keyboard[SHOOT_BTN]) {
+			world->spawn(new Bullet{world->gfx_resources(), _pos, _dir, this});
+		}
+	}
+
+	void paint(Gfx* gfx) const
+	{
+		_mesh->set_pos(_pos); // NOTE: book-keeping
+		gfx->paint(_mesh);
+	}
+};
+
+class Bullet : public Entity
+{
+private:
+	Vec2  _pos;
+	Vec2  _vel;
+	int   _damage;
+	Mesh* _mesh;
+	Hero* _shooter;
+
+public:
+	Bullet(const GfxResources& gfx_resources, Vec2 pos, Vec2 vel)
+		: _pos(pos), _vel(vel)
+	{
+		_mesh = gfx_resources.get("bullet");
+	}
+
+	void update(World* world, float dt) override
+	{
+		if (const auto hit_hero = world->hero_at(_pos)) {
+			hit_hero->_hp -= _damage;
+			if (hit_hero->_hp) {
+				_shooter->_num_kills += 1;
+			}
+			this->mark_for_deletion(); // TODO
+		}
+		_pos += dt * _vel;
+	}
+
+	void paint(Gfx* gfx) const
+	{
+		_mesh->set_pos(_pos);
+		gfx->paint(_mesh);
+	}
+}
+
+class World {
+private:
+	std::vector<Entity*> _entities;
+
+	void update(float dt)
+	{
+		for (auto& entity : entities) {
+			entity->update(dt);
+		}
+		// TODO: remove entities marked for deletion
+	}
+
+	void spawn(Entity* entity)
+	{
+		_entities.push(entity);
+	}
+}
+```
+
+# Data oriented example
+
+``` rust
+struct Hero {
+    pos: vec3,
+    vel: vec3,
+    num_kills: i32,
+    hp: i32,
+}
+
+const MAX_HEROES: usize = 32;
+type HeroList = [Hero; MAX_HEROES];
+
+struct Bullet {
+    pos: vec3,
+    vel: vec3,
+    damage: i32,
+    shooter: HeroId,
+}
+
+const MAX_BULLETS: usize = 1024 * 1024;
+type BulletList = [Bullet; MAX_BULLETS];
+
+struct World {
+    heroes: HeroList,
+    bullets: [Bullets; MAX_BULLETS],
+}
+
+struct PaintCmd {
+    mesh_name: string,
+    pos: Vec2,
+}
+
+struct Input {
+    dt: f32,
+    exit: bool,
+    hero_input: [HeroInput; MAX_HEROES],
+}
+
+fn main() {
+    let mut world = load_game();
+    let mut gfx = Gfx::new();
+    loop {
+        let input = read_input();
+        if (input.exit) {
+            break;
+        }
+        world = update_world(world, input);
+        let paint_list = paint_world(world);
+        gfx.paint(paint_list);
+    }
+    save_game(world);
+}
+
+fn update_world(old_world: &World, input: &Input) -> World {
+    let new_heroes = move_heroes(old_world.heroes, input);
+    let moved_bullets = move_bullets(old_world.bullets, input.dt);
+
+    let spawned_bullets = shoot(old_world.heroes, input);
+    let new_bullets = concat(moved_bullets, spawned_bullets);
+
+    let (new_heroes, new_bullets) = hit_bullets(new_heroes, new_bullets);
+
+    let new_world = World {
+        heroes: new_heroes,
+        bullets: new_bullets,
+    };
+    return new_world;
+}
+
+fn move_heroes(old_heroes: &HeroList, input: &PlayerInput) -> HeroList {
+    let mut new_heroes = old_heroes.clone();
+    for hi in 0..MAX_HEROES {
+        if input.hero_input[hi] {
+            new_heroes[hi].vel *= 0.5;
+        }
+        new_heroes[hi].pos += new_heroes[hi].vel * input.dt;
+    }
+    new_heroes
+}
+
+fn shoot(heroes: &HeroList, input: &PlayerInput) -> Vec<Bullet> {
+    let mut bullets = Vec::new();
+    for hi in 0..MAX_HEROES {
+        if input.hero_input[hi].shoot {
+            bullets.push(Bullet {
+                pos: heroes[hi].pos,
+                dir: heroes[hi].vel.normalized() * BULLET_SPEED,
+                damage: BULLET_DMG,
+                shooter: hi,
+            });
+        }
+    }
+    bullets
+}
+
+fn hit_bullets(mut heroes: HeroList, mut bullets: BulletList) -> (HeroList, BulletList) {
+    // TODO: faster collision detection than O(H * B)
+    for hi in 0..MAX_HEROES {
+        for bi in 0..MAX_BULLETS {
+            let bullet = &bullets[bi];
+            let did_hit = heroes[hi].pos.dist_sq(bullet.pos) < sqr(HERO_RADIUS);
+            if did_hit {
+                heroes[hi].hp -= bullet.dmg;
+                if heroes[hi].hp <= 0 {
+                    heroes[bullet.shooter].num_kills += 1;
+                }
+                bullet = None; // The bullet is spent.
+                break;
+            }
+        }
+    }
+    (heroes, bullets)
+}
+
+fn paint_hero(hero: &Hero) -> PaintCmd {
+    PaintCmd {
+        mesh: "hero",
+        pos: hero.pos,
+    }
+}
+
+fn paint_bullet(bullet: &Bullet) -> PaintCmd {
+    PaintCmd {
+        mesh: "bullet",
+        pos: hero.pos,
+    }
+}
+
+fn paint_world(world: &World) -> Vec<PaintCmd> {
+    world
+        .heroes
+        .iter()
+        .map(paint_hero)
+        .chain(world.bullets.iter().map(paint_bullet))
+        .collect()
+}
+```
+
+
+# Cache is king
+
+Squaring the number pointed to by `ebx`:
+
+```
+mov eax, [ebx]
+mul eax, eax
+mov [ebx], eax
+```
+
+## Memory hierarchies
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
