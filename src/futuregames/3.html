@@ -1,0 +1,206 @@
+<meta charset="utf-8" lang="en"><style class="fallback">body{visibility:hidden;}</style>
+# Third lecture: Entity Component Systems (ECS)
+
+## Last time in review:
+* Keep your data dumb and immutable
+* Clear ownership
+* Separate the data from the code
+* Think of the cache!
+
+Clarify: question about university
+
+## Definitions
+* **Entity:** And id (integer) + a collection of components. Commonly 0 or 1 of each type.
+* **Component:** A `struct` with some data. Represents a trait/ability.
+* **System:** Code that does a specific thing using one or more types of components. OFTEN one system per component.
+* **Message:** A deferred function call.
+
+# Implementation
+No single one is "the right one". Depends on game, programming language, personal preference, trade-offs between speed, convenience, generality etc.
+
+## Example components:
+``` rust
+type EntityId = u64;
+
+struct HealthComponent {
+    hp: i32,
+}
+
+struct BulletComponent {
+    armour_piercing: bool,
+    attacker: EntityId,
+    damage: i32,
+}
+
+struct HandComponent {
+    left: Option&lt;EntityId>,
+    right: Option&lt;EntityId>,
+}
+
+struct Handle { }
+```
+
+## Native:
+``` rust
+struct Entity {
+    id: EntityId,
+    hand: Option&lt;HandComponent>,
+    handle: Option&lt;HandleComponent>,
+    health: Option&lt;HealthComponent>,
+    ...
+}
+```
+
+``` rust
+struct Entity {
+    id: EntityId,
+    components: HashMap&lt;ComponentType, Component>,
+    ...
+}
+```
+
+## Better:
+``` rust
+struct Components {
+    hand: HashMap&lt;EntityId, HandComponent>,
+    handle: HashMap&lt;EntityId, HandleComponent>,
+    health: HashMap&lt;EntityId, HealthComponent>,
+}
+```
+
+# Messages
+
+## The problem with direct function calls
+``` rust
+fn update_bullet_system(game: Game) {
+    for (a, b) in game.physics.collision_pairs() {
+        if a.bullet { on_bullet_hit(b, a); }
+        if b.bullet { on_bullet_hit(a, b); }
+    }
+}
+
+fn on_bullet_hit(victim: Entity, bullet: Bullet) {
+    if victim.hand && victim.hand.is_holding_shield() {
+        on_shield_block(victim);
+    } else {
+        if victim.health {
+            take_damage(victim, bullet.damage, bullet.attacker);
+        }
+    }
+}
+
+fn take_damage(victim: Entity, attacker: Entity, damage: i32) {
+    if victim.health {
+        victim.health.hp -= damage;
+        if victim.health.hp <= 0 {
+            on_death(victim, attacker);
+        }
+    }
+}
+
+fn on_death(victim: Entity, attacker: Entity) {
+    if victim.hero {
+        give_kill_point(attacker);
+    }
+    if victim.explode_on_death && victim.pose {
+        cause_explosion(victim.pose.position)
+    }
+}
+```
+
+...but we are supposed do be colliding bullets, not spawning explosions!
+
+## Messages
+``` rust
+fn setup() {
+    message_system.subscribe(MessageType::bullet_hit, on_bullet_hit);
+    message_system.subscribe(MessageType::take_damage, on_damage);
+    message_system.subscribe(MessageType::explosion, push_objects);
+    message_system.subscribe(MessageType::explosion, hurt_by_explosions);
+    message_system.subscribe(MessageType::explosion, char_ground);
+}
+
+fn on_bullet_hit(msg: BulletMessage) {
+    if msg.victim.hand && msg.victim.hand.is_holding_shield() {
+        message_system.send(Message{on_shield_block, msg.victim});
+    } else {
+        message_system.send(Message{
+            take_damage, msg.victim, msg.bullet.damage, msg.bullet.attacker});
+    }
+}
+
+fn on_damage(msg: DamageMessage) {
+    if msg.victim.health {
+        msg.victim.health.hp -= msg.damage;
+        if msg.victim.health.hp <= 0 {
+            message_system.send(Message{on_death, msg.victim, msg.attacker});
+        }
+    }
+}
+```
+
+* **Pros:** Do one thing at the time, better perf, less room for bugs
+* **Cons:** More boilerplate
+
+
+# Control flow direction:
+* **Poll** (gather, pull): "Are we there yet? Are we there yet? Are we there yet?"
+* **Event** (scatter, push, message): "You have arrived at your destination."
+
+## Example A:
+**Desired effect**: when a hero carries a shield, they take no damage
+
+* **Event:** HandSystem informs the HealthSystem when the hand grabs or lets go of a shield.
+* **Poll:** The DamageSystems checks the HandComponent if it is carrying a shield.
+
+## Example B:
+**Desired effect**: when a hero takes damage, they drop what they're carrying
+
+* **Event:** HealthComponent informs the HandComponent that it should drop whatever it is carrying.
+* **Poll:** HandComponent asks HealthComponent if it has gotten any damage this frame.
+
+## Which method is the best in each of these examples? Why?
+
+### Poll:
+``` rust
+fn on_bullet_hit(msg: BulletMessage) {
+    if msg.victim.hand && msg.victim.hand.is_holding_shield() {
+        // Blocked
+    } else {
+        // Take damage
+    }
+}
+
+fn update_hand(entity: Entity, hand: HandComponent) {
+    if entity.health && entity.health.was_damaged_this_frame() {
+        hand.drop_everything();
+    }
+}
+```
+
+### Event:
+``` rust
+fn HandSystem::on_pick_up(subject: Entity, object: Entity) {
+    if object.shield && subject.health {
+        subject.health.set_shilded(true);
+    }
+}
+
+fn on_damage(entity: Entity, ...) {
+    if entity.hand {
+        entity.hand.drop_everything();
+    }
+    ...
+}
+```
+
+### Rule of thumb(s):
+
+* Minimize state
+* Do no repeat information
+* Avoid bookkeeping
+
+# Multithreading
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
