@@ -49,4 +49,4 @@ redirect blog/2014/5/10/responsiveness                                    ../../
 redirect blog/2014/5/6/type-safe-identifiers-in-c                         ../../../../../2014_05_06_type_safe_handles.html
 redirect blog/2014/4/29/the-myth-of-ram-part-iii                          ../../../../../2014_04_29_myth_of_ram_3.html
 redirect blog/2014/4/28/the-myth-of-ram-part-ii                           ../../../../../2014_04_28_myth_of_ram_2.html
-redirect blog/2014/4/21/the-myth-of-ram-part-i                            ../../../../../2014_04_21_myth_of_ram_1.md.html
+redirect blog/2014/4/21/the-myth-of-ram-part-i                            ../../../../../2014_04_21_myth_of_ram_1.html
